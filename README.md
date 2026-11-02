@@ -14,7 +14,8 @@ Diseño blanco y minimalista al estilo de las apps de Apple: tipografía del sis
 | **Recetario** | **Menús** (comidas completas que se añaden de un toque, con deshacer, o ajustando antes qué incluir y la cantidad ×0,5–×2) y **platos** (recetas con ingredientes, raciones y peso cocinado opcional). 22 recetas españolas “de la casa” que puedes copiar y adaptar. Desde el Diario, “Guardar como menú” convierte cualquier comida registrada en menú. |
 | **Logros** (dentro de Mascota) | 62 logros en 18 series por niveles (racha, días, semanas constantes, variedad, agua, calidad, equilibrio, proteína, fibra, actividad, horas de ejercicio, peso…), pensados para meses y años: los primeros llegan en semanas y los últimos exigen hasta 1000 días. Dan de 100 a 4000 gemas y muchos desbloquean artículos exclusivos. |
 | **Mascota** | 6 especies, nivel (curva progresiva: ~nivel 18 tras un año) y armario con 133 artículos en 8 zonas: cabeza, cara, cuello, ropa, mano, compañero, color (incluidos degradados) y fondo. Rarezas Común / Raro / Épico / Legendario / Exclusivo de logro; cada artículo se previsualiza puesto. |
-| **Perfil** | Peso inicial/actual/objetivo, gráfica, IMC, resumen nutricional de 7 días, objetivos y copias de seguridad. |
+| **Perfil** | **Tendencia de peso** (media móvil que filtra los vaivenes de líquidos), ritmo real en kg/semana, proyección hacia el objetivo, IMC, resumen nutricional de 7 días, objetivos y copias de seguridad. |
+| **Objetivo adaptativo** | Cada semana calcula tu **gasto real** con lo que comes (solo días completos) y la recta de tus pesajes de las últimas 5 semanas (1 kg ≈ 7.700 kcal) y **ajusta el objetivo solo**: como máximo ±150 kcal por semana, sin bajar de los mínimos de seguridad, sin contar dos veces el ejercicio. Aviso en Inicio con *Deshacer*, historial y opción de excluir días mal registrados. Se pausa si fijas un objetivo manual. |
 
 **Añadir alimentos**: base local de 350 alimentos y platos habituales en España (funciona sin conexión), búsqueda online en [Open Food Facts](https://world.openfoodfacts.org) (productos de supermercado con Nutri-Score), **escáner de código de barras con la cámara** (lector propio en WebAssembly, sin conexión una vez usado), menús, platos, alimentos propios, recientes, *añadido rápido* de kcal, “copiar la comida de ayer” y **sugerencias “lo de siempre”** según la hora (combinaciones que repites y menús de esa comida).
 
@@ -57,6 +58,7 @@ npm install
 npm run dev        # http://localhost:5173/FoodControl/ (también accesible desde el iPhone en la misma red)
 npm run build      # genera dist/
 npm run preview    # sirve la build
+npm test           # tests de la lógica (objetivo adaptativo, tendencia de peso)
 npm run icons      # regenera los PNG de iconos desde public/favicon.svg (requiere Playwright)
 ```
 

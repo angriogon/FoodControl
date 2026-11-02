@@ -54,7 +54,7 @@ export function suggestionsFor(state: AppState, meal: MealId, date: string, max 
       out.push({
         key: `habitual-${meal}`,
         title: `Tu ${MEAL_NAME[meal]} habitual`,
-        subtitle: `${portions.map((p) => p.food.name).join(', ')} · ${n} veces este mes`,
+        subtitle: `${portions.map((p) => p.food.name).join(', ')} · ${n} veces en las últimas semanas`,
         emoji: '🔁',
         kcal: Math.round(sumNutrients(portions.map((p) => scaleNutrients(p.food.per100, p.amount))).kcal),
         portions,

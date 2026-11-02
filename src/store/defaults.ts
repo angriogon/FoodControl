@@ -1,5 +1,5 @@
 import type {
-  ActivityEntry, AppState, Equipped, Food, FoodEntry, MealId, Menu, Nutrients, Portion, Profile, QualityGrade, Recipe, Species, WeightEntry
+  ActivityEntry, AdaptiveCheck, AdaptiveState, AppState, Equipped, Food, FoodEntry, MealId, Menu, Nutrients, Portion, Profile, QualityGrade, Recipe, Species, WeightEntry
 } from '../types';
 import { PET_ITEMS } from '../lib/pet';
 
@@ -34,6 +34,7 @@ export function defaultState(): AppState {
     recentFoods: [],
     recipes: [],
     menus: [],
+    adaptive: { enabled: true, history: [] },
     pet: {
       species: 'brote',
       name: 'Brotín',
@@ -163,6 +164,35 @@ function menu(v: unknown): Menu | null {
   };
 }
 
+function adaptiveCheck(v: unknown): AdaptiveCheck | null {
+  if (!isObj(v) || !isDate(v.date)) return null;
+  const k = (key: string) => num(v[key], 0, 0, 20000);
+  return {
+    date: v.date as string,
+    applied: v.applied === true,
+    observedTdee: k('observedTdee'),
+    tdee: k('tdee'),
+    prevTdee: k('prevTdee'),
+    target: k('target'),
+    prevTarget: k('prevTarget'),
+    avgIntake: k('avgIntake'),
+    ratePerWeek: num(v.ratePerWeek, 0, -10, 10),
+    completeDays: Math.round(num(v.completeDays, 0, 0, 1000)),
+    weighIns: Math.round(num(v.weighIns, 0, 0, 1000)),
+    undone: v.undone === true ? true : undefined
+  };
+}
+
+function adaptiveFrom(v: unknown): AdaptiveState {
+  const o = isObj(v) ? v : {};
+  const tdee = num(o.tdee, NaN, 1000, 6000);
+  return {
+    enabled: o.enabled === false ? false : true,
+    tdee: Number.isFinite(tdee) ? tdee : undefined,
+    history: list(o.history, adaptiveCheck, 260)
+  };
+}
+
 function activity(v: unknown): ActivityEntry | null {
   if (!isObj(v) || typeof v.id !== 'string') return null;
   return {
@@ -244,7 +274,8 @@ export function migrate(input: unknown): AppState {
         entries: list(d.entries, entry, 300),
         activities: list(d.activities, activity, 100),
         waterMl: num(d.waterMl, 0, 0, 20000),
-        note: str(d.note, '', 5000)
+        note: str(d.note, '', 5000),
+        incomplete: d.incomplete === true ? true : undefined
       };
     }
   }
@@ -277,6 +308,7 @@ export function migrate(input: unknown): AppState {
     recentFoods: list(o.recentFoods, food, 40),
     recipes: list(o.recipes, recipe, 1000),
     menus: list(o.menus, menu, 500),
+    adaptive: adaptiveFrom(o.adaptive),
     pet: {
       species: oneOf(pet.species, SPECIES_IDS, base.pet.species),
       name: str(pet.name, base.pet.name, 20) || base.pet.name,

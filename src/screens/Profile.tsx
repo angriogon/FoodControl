@@ -4,10 +4,12 @@ import { useAppState, useTargets, currentWeight } from '../store/store';
 import { addDays, shortDate, todayKey, weekdayLetter, diffDays } from '../lib/dates';
 import { dayQuality, dayTotals, fmt, qualityLabel } from '../lib/nutrition';
 import { WeightSheet } from './WeightSheet';
+import { trendSeries, weightInsight, type TrendPoint } from '../lib/trend';
 import { SettingsSheet } from './Settings';
+import { AdaptiveSheet } from './Adaptive';
 
 const GOAL_LABEL = { perder: 'Bajar de peso', mantener: 'Mantener peso', ganar: 'Ganar peso' };
-type Range = 7 | 30 | 180 | 0;
+type Range = 30 | 90 | 180 | 0;
 const TEXT_LABEL = { auto: 'Como en iOS', m: 'Normal', l: 'Grande', xl: 'Muy grande' };
 const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 
@@ -16,6 +18,7 @@ export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataO
   const targets = useTargets();
   const [tab, setTab] = useState<'peso' | 'nutricion'>('peso');
   const [weightOpen, setWeightOpen] = useState(false);
+  const [adaptiveOpen, setAdaptiveOpen] = useState(false);
   const [settings, setSettings] = useState<'perfil' | 'accesibilidad' | null>(null);
   const { profile, ui } = state;
   const initial = (profile.name || '?').charAt(0).toUpperCase();
@@ -47,6 +50,9 @@ export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataO
       <h2 className="section-header">Ajustes</h2>
       <div className="group inset-icons">
         <Cell icon={<span className="icon-tile" style={{ background: '#34c759' }}>🎯</span>} title="Objetivos, macros y agua" onClick={() => setSettings('perfil')} />
+        <Cell icon={<span className="icon-tile" style={{ background: '#ff9500' }}>🧪</span>} title="Objetivo adaptativo"
+          sub={state.profile.kcalOverride ? 'En pausa (objetivo manual)' : !state.adaptive.enabled ? 'Desactivado' : state.adaptive.tdee != null ? `Gasto real estimado: ${fmt(state.adaptive.tdee)} kcal` : 'Calibrando con tus datos'}
+          onClick={() => setAdaptiveOpen(true)} />
         <Cell icon={<span className="icon-tile" style={{ background: '#007aff' }}>Aa</span>} title="Accesibilidad y apariencia"
           sub={`Texto: ${TEXT_LABEL[ui.textSize]} · Tema: ${THEME_LABEL[ui.theme]}`} onClick={() => setSettings('accesibilidad')} />
         <Cell icon={<span className="icon-tile" style={{ background: '#5ac8fa' }}>☁️</span>} title="Datos y copia de seguridad" onClick={() => setDataOpen(true)} />
@@ -54,6 +60,7 @@ export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataO
       <p className="section-footer center">FoodControl · tus datos se guardan solo en este dispositivo</p>
 
       <WeightSheet open={weightOpen} onClose={() => setWeightOpen(false)} />
+      <AdaptiveSheet open={adaptiveOpen} onClose={() => setAdaptiveOpen(false)} />
       <SettingsSheet open={settings === 'perfil'} onClose={() => setSettings(null)} section="perfil" />
       <SettingsSheet open={settings === 'accesibilidad'} onClose={() => setSettings(null)} section="accesibilidad" />
       <SettingsSheet open={dataOpen} onClose={() => setDataOpen(false)} section="datos" />
@@ -63,24 +70,30 @@ export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataO
 
 function WeightTab({ onAdd }: { onAdd: () => void }) {
   const state = useAppState();
-  const [range, setRange] = useState<Range>(30);
+  const [range, setRange] = useState<Range>(0);
   const { profile, weights } = state;
-  const current = currentWeight(state);
+  const today = todayKey();
+  const insight = useMemo(() => weightInsight(weights, profile.goalWeightKg, today), [weights, profile.goalWeightKg, today]);
+  const current = insight.trendKg ?? currentWeight(state);
   const lost = profile.startWeightKg - current;
   const bmi = current / (profile.heightCm / 100) ** 2;
   const toGo = current - profile.goalWeightKg;
+  const goingRight = (r: number) => (profile.goal === 'ganar' ? r > 0 : profile.goal === 'perder' ? r < 0 : Math.abs(r) < 0.15);
 
-  const points = useMemo(() => {
-    const from = range ? addDays(todayKey(), -range) : '0000';
-    return weights.filter((w) => w.date >= from);
-  }, [weights, range]);
+  const series = useMemo(() => {
+    const from = range ? addDays(today, -range) : '0000';
+    return trendSeries(weights).filter((p) => p.date >= from);
+  }, [weights, range, today]);
 
   return (
     <>
       <div className="card mt">
         <div className="stat-trio">
           <div><div className="stat-value">{fmt(profile.startWeightKg, 1)}</div><div className="tiny muted">Inicial (kg)</div></div>
-          <div><div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(current, 1)}</div><div className="tiny muted">Actual (kg)</div></div>
+          <div>
+            <div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(current, 1)}</div>
+            <div className="tiny muted">{insight.trendKg != null && weights.length >= 3 ? 'Tendencia (kg)' : 'Actual (kg)'}</div>
+          </div>
           <div><div className="stat-value">{fmt(profile.goalWeightKg, 1)}</div><div className="tiny muted">Objetivo (kg)</div></div>
         </div>
         {Math.abs(lost) >= 0.1 && (
@@ -89,18 +102,64 @@ function WeightTab({ onAdd }: { onAdd: () => void }) {
           </p>
         )}
       </div>
+
+      {weights.length >= 3 && (
+        <div className="group mt">
+          <div className="cell">
+            <span className="icon-tile" style={{ background: '#34c759' }} aria-hidden="true">📉</span>
+            <span className="grow">
+              <span className="cell-title">Ritmo real</span>
+              <span className="cell-sub">
+                {insight.ratePerWeek == null
+                  ? 'Necesita pesajes que cubran al menos 2 semanas'
+                  : `${insight.ratePerWeek > 0 ? '+' : ''}${fmt(insight.ratePerWeek, 2)} kg/semana (últimas 5 semanas)`}
+              </span>
+            </span>
+            {insight.ratePerWeek != null && <span aria-hidden="true">{goingRight(insight.ratePerWeek) ? '✅' : '⚠️'}</span>}
+          </div>
+          {insight.projection && (
+            <div className="cell">
+              <span className="icon-tile" style={{ background: '#007aff' }} aria-hidden="true">🏁</span>
+              <span className="grow">
+                <span className="cell-title">Llegarías a {fmt(profile.goalWeightKg, 1)} kg hacia {monthYear(insight.projection)}</span>
+                <span className="cell-sub">Proyección orientativa si mantienes este ritmo</span>
+              </span>
+            </div>
+          )}
+          {insight.lastVsTrend != null && Math.abs(insight.lastVsTrend) >= 0.5 && (
+            <div className="cell">
+              <span className="icon-tile" style={{ background: '#5ac8fa' }} aria-hidden="true">💧</span>
+              <span className="grow">
+                <span className="cell-title">Último pesaje {insight.lastVsTrend > 0 ? '+' : ''}{fmt(insight.lastVsTrend, 1)} kg sobre tu tendencia</span>
+                <span className="cell-sub">
+                  {insight.lastVsTrend > 0
+                    ? 'Suele ser agua (sal, comida tardía, entreno). Fíjate en la tendencia, no en el número del día.'
+                    : 'Bajada puntual: suele deberse a líquidos. La tendencia confirmará si se mantiene.'}
+                </span>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <button className="btn block mt" onClick={onAdd}>Añadir peso</button>
 
       <h2 className="section-title">Evolución</h2>
       <Segmented label="Periodo" value={range} onChange={setRange}
-        options={([[7, '7 días'], [30, '1 mes'], [180, '6 meses'], [0, 'Todo']] as [Range, string][]).map(([v, l]) => ({ value: v, label: l }))} />
+        options={([[30, '1 mes'], [90, '3 meses'], [180, '6 meses'], [0, 'Todo']] as [Range, string][]).map(([v, l]) => ({ value: v, label: l }))} />
 
       <div className="card mt">
-        {points.length >= 2 ? (
-          <WeightChart points={points} goal={profile.goalWeightKg} />
+        {series.length >= 2 ? (
+          <>
+            <WeightChart points={series} goal={profile.goalWeightKg} />
+            <div className="row small muted" style={{ gap: '1rem', marginTop: '0.5rem', justifyContent: 'center' }} aria-hidden="true">
+              <span className="row" style={{ gap: '0.35rem' }}><span style={{ width: 10, height: 10, borderRadius: 99, border: '2px solid #2BB39B' }} /> Pesaje</span>
+              <span className="row" style={{ gap: '0.35rem' }}><span style={{ width: 16, height: 3, borderRadius: 99, background: '#2BB39B' }} /> Tendencia</span>
+            </div>
+          </>
         ) : (
           <p className="center muted small" style={{ padding: '1.4rem 0' }}>
-            {points.length ? 'Registra al menos dos pesos para ver la gráfica.' : 'No hay registros en este periodo.'}
+            {series.length ? 'Registra al menos dos pesos para ver la gráfica.' : 'No hay registros en este periodo.'}
           </p>
         )}
       </div>
@@ -120,6 +179,12 @@ function WeightTab({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+const fmtMonth = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
+function monthYear(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  return fmtMonth.format(new Date(y, m - 1, d));
+}
+
 function bmiLabel(b: number): string {
   if (b < 18.5) return 'bajo peso';
   if (b < 25) return 'normal';
@@ -127,13 +192,19 @@ function bmiLabel(b: number): string {
   return 'obesidad';
 }
 
-function WeightChart({ points, goal }: { points: { date: string; kg: number }[]; goal: number }) {
+function WeightChart({ points, goal }: { points: TrendPoint[]; goal: number }) {
   const W = 320;
   const H = 180;
   const pad = { l: 34, r: 10, t: 12, b: 24 };
-  const kgs = points.map((p) => p.kg);
-  let min = Math.min(...kgs, goal);
-  let max = Math.max(...kgs, goal);
+  const vals = points.flatMap((p) => [p.kg, p.trend]);
+  let min = Math.min(...vals);
+  let max = Math.max(...vals);
+  // El objetivo solo se dibuja si está cerca: si no, aplastaría la curva
+  const showGoal = goal >= min - 3 && goal <= max + 3;
+  if (showGoal) {
+    min = Math.min(min, goal);
+    max = Math.max(max, goal);
+  }
   const span = Math.max(2, max - min);
   min = Math.floor(min - span * 0.1);
   max = Math.ceil(max + span * 0.1);
@@ -141,15 +212,18 @@ function WeightChart({ points, goal }: { points: { date: string; kg: number }[];
   const days = Math.max(1, diffDays(points[points.length - 1].date, d0));
   const x = (d: string) => pad.l + (diffDays(d, d0) / days) * (W - pad.l - pad.r);
   const y = (kg: number) => pad.t + ((max - kg) / (max - min)) * (H - pad.t - pad.b);
-  const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)} ${y(p.kg).toFixed(1)}`).join(' ');
-  const area = `${path} L${x(points[points.length - 1].date)} ${H - pad.b} L${x(d0)} ${H - pad.b} Z`;
+  const trendPath = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.date).toFixed(1)} ${y(p.trend).toFixed(1)}`).join(' ');
+  const area = `${trendPath} L${x(points[points.length - 1].date)} ${H - pad.b} L${x(d0)} ${H - pad.b} Z`;
   const ticks = [max, (max + min) / 2, min];
+  const first = points[0];
+  const last = points[points.length - 1];
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Evolución del peso">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img"
+      aria-label={`Evolución del peso del ${shortDate(first.date)} al ${shortDate(last.date)}: tendencia de ${fmt(first.trend, 1)} a ${fmt(last.trend, 1)} kilos`}>
       <defs>
         <linearGradient id="wfill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stopColor="#2BB39B" stopOpacity=".25" />
+          <stop offset="0" stopColor="#2BB39B" stopOpacity=".22" />
           <stop offset="1" stopColor="#2BB39B" stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -159,19 +233,19 @@ function WeightChart({ points, goal }: { points: { date: string; kg: number }[];
           <text x={pad.l - 6} y={y(t) + 4} fontSize="11" textAnchor="end" fill="var(--text-3)">{fmt(t)}</text>
         </g>
       ))}
-      {goal >= min && goal <= max && (
+      {showGoal && (
         <g>
           <line x1={pad.l} x2={W - pad.r} y1={y(goal)} y2={y(goal)} stroke="var(--good)" strokeDasharray="4 4" />
           <text x={W - pad.r} y={y(goal) - 4} fontSize="10" textAnchor="end" fill="var(--good)">Objetivo</text>
         </g>
       )}
       <path d={area} fill="url(#wfill)" />
-      <path d={path} fill="none" stroke="#2BB39B" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      <path d={trendPath} fill="none" stroke="#2BB39B" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
       {points.map((p) => (
-        <circle key={p.date} cx={x(p.date)} cy={y(p.kg)} r={points.length > 40 ? 0 : 3.5} fill="var(--card)" stroke="#2BB39B" strokeWidth="2" />
+        <circle key={p.date} cx={x(p.date)} cy={y(p.kg)} r={points.length > 60 ? 2 : 3.5} fill="var(--card)" stroke="#2BB39B" strokeWidth="2" opacity=".85" />
       ))}
       <text x={pad.l} y={H - 6} fontSize="11" fill="var(--text-3)">{shortDate(d0)}</text>
-      <text x={W - pad.r} y={H - 6} fontSize="11" textAnchor="end" fill="var(--text-3)">{shortDate(points[points.length - 1].date)}</text>
+      <text x={W - pad.r} y={H - 6} fontSize="11" textAnchor="end" fill="var(--text-3)">{shortDate(last.date)}</text>
     </svg>
   );
 }

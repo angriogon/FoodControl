@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { TabBar, type Tab } from './components/TabBar';
 import { Toasts, toast } from './components/Toast';
-import { actions, useAppState, useStoreReady, useTargets } from './store/store';
+import { actions, currentWeight, useAppState, useStoreReady, useTargets } from './store/store';
+import { evaluateAdaptive, shouldRunAdaptive } from './lib/adaptive';
+import { todayKey } from './lib/dates';
 import { ACHIEVEMENTS, computeStats } from './lib/gamification';
 import { Home } from './screens/Home';
 import { Diary } from './screens/Diary';
@@ -59,6 +61,20 @@ export default function App() {
     const dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#000000' : '#FFFFFF');
   }, [textSize, theme, highContrast]);
+
+  // Objetivo adaptativo: una vez por semana, si hay datos suficientes, se ajusta solo
+  useEffect(() => {
+    if (!ready) return;
+    const today = todayKey();
+    if (!shouldRunAdaptive(state, today)) return;
+    const r = evaluateAdaptive(state, today, currentWeight(state));
+    if (!r.ok) return; // sin datos suficientes: se vuelve a intentar otro día
+    actions.recordAdaptive(r.check);
+    const diff = r.check.target - r.check.prevTarget;
+    if (diff !== 0) {
+      setTimeout(() => toast(`Objetivo ajustado: ${r.check.prevTarget} → ${r.check.target} kcal`, '🎯', 4000), 600);
+    }
+  }, [ready, state]);
 
   // Detecta logros nuevos cada vez que cambian los datos
   useEffect(() => {

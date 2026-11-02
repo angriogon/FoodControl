@@ -49,9 +49,10 @@ export function tdee(profile: Profile, weightKg: number): number {
  * Objetivo calórico. 1 kg de grasa ≈ 7700 kcal, así que 0,5 kg/semana ≈ 550 kcal/día.
  * Nunca bajamos del metabolismo basal ni de un mínimo seguro (1200/1500).
  */
-export function calorieTarget(profile: Profile, weightKg: number): number {
+export function calorieTarget(profile: Profile, weightKg: number, adaptiveTdee?: number): number {
   if (profile.kcalOverride && profile.kcalOverride > 0) return Math.round(profile.kcalOverride);
-  const maintenance = tdee(profile, weightKg);
+  // Gasto real estimado con tus datos (objetivo adaptativo) o, si aún no hay, la fórmula
+  const maintenance = adaptiveTdee ?? tdee(profile, weightKg);
   const delta = (profile.weeklyRateKg * 7700) / 7;
   let target = maintenance;
   if (profile.goal === 'perder') target = maintenance - delta;
@@ -60,8 +61,8 @@ export function calorieTarget(profile: Profile, weightKg: number): number {
   return Math.round(Math.max(target, floor));
 }
 
-export function computeTargets(profile: Profile, weightKg: number): Targets {
-  const kcal = calorieTarget(profile, weightKg);
+export function computeTargets(profile: Profile, weightKg: number, adaptiveTdee?: number): Targets {
+  const kcal = calorieTarget(profile, weightKg, adaptiveTdee);
   const { protein, carbs, fat } = profile.macroSplit;
   const meals = Object.fromEntries(
     (Object.keys(profile.mealSplit) as MealId[]).map((m) => [m, Math.round((kcal * profile.mealSplit[m]) / 100)])

@@ -17,6 +17,7 @@ import { diffDays, greeting, longDate, todayKey } from '../lib/dates';
 import { isStandalone } from '../lib/storage';
 import { AddFoodSheet } from './FoodSheets';
 import { AnalysisSheet } from './Analysis';
+import { AdaptiveCard, AdaptiveSheet } from './Adaptive';
 import { WeightSheet } from './WeightSheet';
 import { MyFoodsSheet } from './MyFoodsSheet';
 import { SCENES } from '../lib/pet';
@@ -31,6 +32,7 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
   const [weightOpen, setWeightOpen] = useState(false);
   const [foodsOpen, setFoodsOpen] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [adaptiveOpen, setAdaptiveOpen] = useState(false);
 
   const totals = dayTotals(day);
   const nowMeal = mealForNow();
@@ -107,6 +109,8 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
           <IconChevronRight size={16} className="chevron" />
         </button>
       )}
+
+      <AdaptiveCard onOpen={() => setAdaptiveOpen(true)} />
 
       {suggestions.length > 0 && (
         <section aria-label="Sugerencias">
@@ -206,6 +210,7 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
       <AddFoodSheet open={addMeal !== null} onClose={() => setAddMeal(null)} date={today} meal={addMeal ?? 'desayuno'} />
       <WeightSheet open={weightOpen} onClose={() => setWeightOpen(false)} />
       <MyFoodsSheet open={foodsOpen} onClose={() => setFoodsOpen(false)} />
+      <AdaptiveSheet open={adaptiveOpen} onClose={() => setAdaptiveOpen(false)} />
       <AnalysisSheet open={analysisOpen} onClose={() => setAnalysisOpen(false)} date={today} />
     </div>
   );

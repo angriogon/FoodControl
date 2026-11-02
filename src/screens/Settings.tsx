@@ -84,7 +84,8 @@ function ProfileSettings({ open, onClose }: { open: boolean; onClose: () => void
   const mealSum = Object.values(p.mealSplit).reduce((a, b) => a + b, 0);
   const valid = macroSum === 100 && mealSum === 100 && p.heightCm > 100 && p.startWeightKg > 25 && p.goalWeightKg > 25;
   const w = currentWeight(state);
-  const preview = computeTargets(p, w);
+  const adaptiveTdee = state.adaptive.enabled ? state.adaptive.tdee : undefined;
+  const preview = computeTargets(p, w, adaptiveTdee);
 
   return (
     <Sheet
@@ -103,12 +104,14 @@ function ProfileSettings({ open, onClose }: { open: boolean; onClose: () => void
       <h3 className="section-header">Calorías</h3>
       <div className="card small">
         <div className="row between"><span>Metabolismo basal</span><b className="num">{fmt(bmr(p, w))} kcal</b></div>
-        <div className="row between" style={{ marginTop: '0.35rem' }}><span>Gasto diario estimado</span><b className="num">{fmt(tdee(p, w))} kcal</b></div>
+        <div className="row between" style={{ marginTop: '0.35rem' }}><span>Gasto diario (fórmula)</span><b className="num">{fmt(tdee(p, w))} kcal</b></div>
+        {adaptiveTdee != null && <div className="row between" style={{ marginTop: '0.35rem' }}><span>Gasto real (tus datos)</span><b className="num">{fmt(adaptiveTdee)} kcal</b></div>}
         <div className="row between" style={{ marginTop: '0.35rem' }}><span>Tu objetivo</span><b className="num">{fmt(preview.kcal)} kcal</b></div>
       </div>
       <div className="field" style={{ marginTop: '0.71rem' }}>
         <label>Objetivo manual (opcional, sustituye al cálculo)</label>
         <NumberInput value={p.kcalOverride ?? ''} onChange={(v) => set('kcalOverride', v === '' ? undefined : v)} suffix="kcal" decimal={false} placeholder="Automático" />
+        <span className="tiny muted">Con un objetivo manual, el ajuste semanal automático queda en pausa.</span>
       </div>
       <div className="row between" style={{ marginTop: '0.82rem' }}>
         <div>

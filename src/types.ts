@@ -68,6 +68,8 @@ export interface DayLog {
   activities: ActivityEntry[];
   waterMl: number;
   note: string;
+  /** El usuario indica que no registró todo: no cuenta para el objetivo adaptativo */
+  incomplete?: boolean;
 }
 
 export interface WeightEntry {
@@ -160,6 +162,35 @@ export interface Menu {
   uses: number;
 }
 
+// ───────────── Objetivo adaptativo ─────────────
+
+/** Una revisión semanal del gasto real */
+export interface AdaptiveCheck {
+  date: string; // YYYY-MM-DD
+  applied: boolean;
+  /** Gasto calculado con tus datos de este periodo (sin el ejercicio registrado) */
+  observedTdee: number;
+  /** Gasto usado a partir de ahora (suavizado y limitado) */
+  tdee: number;
+  prevTdee: number;
+  target: number;
+  prevTarget: number;
+  avgIntake: number;
+  /** kg/semana según la tendencia (negativo = bajando) */
+  ratePerWeek: number;
+  completeDays: number;
+  weighIns: number;
+  /** El usuario deshizo este ajuste */
+  undone?: boolean;
+}
+
+export interface AdaptiveState {
+  enabled: boolean;
+  /** Gasto diario estimado vigente (sin ejercicio registrado). Vacío = se usa la fórmula */
+  tdee?: number;
+  history: AdaptiveCheck[];
+}
+
 export interface AppState {
   version: 1;
   profile: Profile;
@@ -170,6 +201,7 @@ export interface AppState {
   recentFoods: Food[];
   recipes: Recipe[];
   menus: Menu[];
+  adaptive: AdaptiveState;
   pet: PetState;
   /** id del logro → fecha ISO de desbloqueo */
   achievements: Record<string, string>;

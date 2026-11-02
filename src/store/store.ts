@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import type { ActivityEntry, AppState, DayLog, Food, FoodEntry, Menu, Profile, Recipe, Species, UiSettings, WeightEntry } from '../types';
+import type { ActivityEntry, AdaptiveCheck, AppState, DayLog, Food, FoodEntry, Menu, Profile, Recipe, Species, UiSettings, WeightEntry } from '../types';
 import { loadState, saveState } from '../lib/storage';
 import { defaultState } from './defaults';
 import { computeTargets, emptyDay } from '../lib/nutrition';
@@ -80,6 +80,42 @@ export const actions = {
   },
   markMenuUsed(id: string) {
     update((s) => ({ ...s, menus: s.menus.map((m) => (m.id === id ? { ...m, uses: m.uses + 1 } : m)) }));
+  },
+  /** Guarda una revisión del objetivo adaptativo (y la aplica si procede) */
+  recordAdaptive(check: AdaptiveCheck) {
+    update((s) => ({
+      ...s,
+      adaptive: {
+        ...s.adaptive,
+        tdee: check.applied ? check.tdee : s.adaptive.tdee,
+        history: [...s.adaptive.history, check].slice(-260)
+      }
+    }));
+  },
+  /** Deshace el último ajuste: vuelve al gasto anterior */
+  undoAdaptive(date: string) {
+    update((s) => {
+      const check = s.adaptive.history.find((h) => h.date === date && h.applied);
+      if (!check || check.undone) return s;
+      return {
+        ...s,
+        adaptive: {
+          ...s.adaptive,
+          tdee: check.prevTdee,
+          history: s.adaptive.history.map((h) => (h === check ? { ...h, undone: true } : h))
+        }
+      };
+    });
+  },
+  setAdaptiveEnabled(enabled: boolean) {
+    update((s) => ({ ...s, adaptive: { ...s.adaptive, enabled } }));
+  },
+  /** Vuelve a empezar la calibración desde la fórmula */
+  resetAdaptive() {
+    update((s) => ({ ...s, adaptive: { ...s.adaptive, tdee: undefined } }));
+  },
+  setDayIncomplete(date: string, incomplete: boolean) {
+    updateDay(date, (d) => ({ ...d, incomplete: incomplete || undefined }));
   },
   updateEntry(date: string, entry: FoodEntry) {
     updateDay(date, (d) => ({ ...d, entries: d.entries.map((e) => (e.id === entry.id ? entry : e)) }));
@@ -198,7 +234,8 @@ export function currentWeight(s: AppState): number {
 export function useTargets() {
   const s = useAppState();
   const w = currentWeight(s);
-  return useMemo(() => computeTargets(s.profile, w), [s.profile, w]);
+  const adaptiveTdee = s.adaptive.enabled ? s.adaptive.tdee : undefined;
+  return useMemo(() => computeTargets(s.profile, w, adaptiveTdee), [s.profile, w, adaptiveTdee]);
 }
 
 export function useDay(date: string): DayLog {

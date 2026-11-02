@@ -5,7 +5,7 @@ import { MACROS, MEALS, burnedKcal, dayTotals, fmt, mealTotals } from '../lib/nu
 import { addDays, dayLabel, longDate, todayKey } from '../lib/dates';
 import { useGameStatus } from '../lib/hooks';
 import { Ring } from '../components/Ring';
-import { Cell, GradeBadge, ProgressBar } from '../components/common';
+import { Cell, GradeBadge, ProgressBar, Switch } from '../components/common';
 import { Flame, Gem, IconBook, IconCalendar, IconChevronLeft, IconChevronRight, IconPlus, IconSparkles, IconTrash } from '../components/Icons';
 import { AddFoodSheet, FoodAmountSheet, QuickAddSheet, foodFromEntry } from './FoodSheets';
 import { ActivitySheet } from './ActivitySheet';
@@ -314,6 +314,8 @@ function WaterCard({ date }: { date: string }) {
   const count = Math.max(1, Math.ceil(profile.waterGoalMl / glass));
   const full = Math.floor(day.waterMl / glass);
   const done = day.waterMl >= profile.waterGoalMl;
+  // Si se supera el objetivo se muestra un vaso más para seguir sumando
+  const glasses = Math.max(count, full + (full >= count ? 1 : 0));
 
   const tap = (i: number) => {
     const next = i < full ? i * glass : (i + 1) * glass;
@@ -337,8 +339,8 @@ function WaterCard({ date }: { date: string }) {
             <button className="add-btn" onClick={() => tap(full)} aria-label="Añadir un vaso"><IconPlus size={18} /></button>
           </div>
         </div>
-        <div className="water-grid" style={{ gridTemplateColumns: `repeat(${Math.min(count, 8)}, 1fr)` }} aria-hidden="true">
-          {Array.from({ length: Math.max(count, full + (full >= count ? 1 : 0)) }, (_, i) => (
+        <div className="water-grid" style={{ gridTemplateColumns: `repeat(${Math.min(glasses, 10)}, 1fr)` }} aria-hidden="true">
+          {Array.from({ length: glasses }, (_, i) => (
             <button key={i} className={`glass${i < full ? ' full' : ''}`} onClick={() => tap(i)} tabIndex={-1}>
               {i < full ? '' : '+'}
             </button>
@@ -353,6 +355,16 @@ function NoteCard({ date }: { date: string }) {
   const day = useDay(date);
   return (
     <>
+      <div className="group mt">
+        <div className="cell">
+          <span className="grow">
+            <span className="cell-title">No registré todo este día</span>
+            <span className="cell-sub">No contará para calcular tu gasto real</span>
+          </span>
+          <Switch checked={!!day.incomplete} onChange={(v) => actions.setDayIncomplete(date, v)} label="No registré todo este día" />
+        </div>
+      </div>
+
       <h2 className="section-title">Notas</h2>
       <label className="sr-only" htmlFor={`note-${date}`}>Nota del día</label>
       <textarea

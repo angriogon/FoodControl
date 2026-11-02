@@ -31,7 +31,8 @@ export function toast(text: string, icon?: string, ms?: number, action?: ToastAc
   // Máximo 2 a la vez: en móvil una pila de avisos tapa el contenido
   toasts = [...toasts.slice(-1), { id, text, icon, action }];
   emit();
-  navigator.vibrate?.(15);
+  // Solo tras una interacción del usuario (los navegadores bloquean la vibración si no)
+  if ((navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive) navigator.vibrate?.(15);
   setTimeout(() => dismiss(id), ms ?? (action ? 5000 : 2400));
 }
 
