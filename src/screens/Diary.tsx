@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import type { FoodEntry, MealId, Portion } from '../types';
 import { actions, currentWeight, useAppState, useDay, useSelectedDate, useTargets } from '../store/store';
 import { MACROS, MEALS, burnedKcal, dayTotals, fmt, mealTotals } from '../lib/nutrition';
@@ -13,6 +13,7 @@ import { AnalysisSheet } from './Analysis';
 import { MenuEditorSheet } from './RecipeSheets';
 import { entryToPortion } from '../lib/recipes';
 import { toast } from '../components/Toast';
+import { SwipeRow } from '../components/SwipeRow';
 
 export function Diary() {
   const [date, setDate] = useSelectedDate();
@@ -34,6 +35,38 @@ export function Diary() {
   const remaining = budget - totals.kcal;
   const isFuture = date > todayKey();
 
+  /** Quita alimentos del día con opción de deshacer (vuelven a su sitio) */
+  const removeWithUndo = (ids: string[], text: string) => {
+    const set = new Set(ids);
+    const removed = day.entries.map((entry, index) => ({ entry, index })).filter((r) => set.has(r.entry.id));
+    if (!removed.length) return;
+    actions.removeEntries(date, ids);
+    toast(text, '🗑️', undefined, { label: 'Deshacer', run: () => actions.restoreEntries(date, removed) });
+  };
+
+  // Deslizar a izquierda/derecha cambia de día (fuera de hojas, campos y filas deslizables)
+  const [anim, setAnim] = useState<'prev' | 'next' | null>(null);
+  const swipe = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.sheet, .sheet-backdrop, .swipe-row, input, textarea, .chips, .segmented, .water-grid')) {
+      swipe.current = null;
+      return;
+    }
+    swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const s = swipe.current;
+    swipe.current = null;
+    if (!s) return;
+    const dx = e.changedTouches[0].clientX - s.x;
+    const dy = e.changedTouches[0].clientY - s.y;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2.2 || Date.now() - s.t > 700) return;
+    const dir = dx > 0 ? 'prev' : 'next';
+    setAnim(dir);
+    setDate(addDays(date, dir === 'prev' ? -1 : 1));
+  };
+
   const toggleMeal = (m: MealId) =>
     setOpenMeals((prev) => {
       const next = new Set(prev);
@@ -43,7 +76,7 @@ export function Diary() {
     });
 
   return (
-    <div className="screen">
+    <div className="screen" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <header className="header">
         <div>
           <div className="eyebrow">{longDate(date)}</div>
@@ -55,7 +88,7 @@ export function Diary() {
         </div>
       </header>
 
-      <DateNav date={date} setDate={setDate} />
+      <DateNav date={date} setDate={(d) => { setAnim(d < date ? 'prev' : 'next'); setDate(d); }} anim={anim} />
 
       {/* Resumen del día */}
       <section className="card mt" aria-label="Resumen de calorías">
@@ -161,39 +194,40 @@ export function Diary() {
                       <button className="link small" style={{ minHeight: '2rem', textTransform: 'none', letterSpacing: 0 }}
                         onClick={() => {
                           const group = entries.filter((x) => x.groupId === e.groupId);
-                          actions.removeEntries(date, group.map((x) => x.id));
-                          toast(`${e.groupName ?? 'Menú'} quitado`, '🗑️', undefined, { label: 'Deshacer', run: () => actions.addEntries(date, group) });
+                          removeWithUndo(group.map((x) => x.id), `${e.groupName ?? 'Menú'} quitado`);
                         }}
                         aria-label={`Quitar el menú ${e.groupName ?? ''} completo`}>
                         Quitar
                       </button>
                     </div>
                   )}
+                  <SwipeRow onDelete={() => removeWithUndo([e.id], `${e.name} eliminado`)}>
                   <button className={`cell${e.groupId ? ' indent' : ''}`} onClick={() => setEditing(e)}
                     aria-label={`${e.name}, ${fmt(e.nutrients.kcal)} kilocalorías. Editar`}>
                     <span className="emoji-tile" aria-hidden="true">{e.emoji ?? '🍽️'}</span>
                     <span className="grow">
                       <span className="cell-title ellipsis">{e.name}</span>
                       <span className="cell-sub">
-                        {e.unit === 'kcal' ? 'Añadido rápido' : `${fmt(e.amount)} ${e.unit}`} · P {fmt(e.nutrients.protein)} · C {fmt(e.nutrients.carbs)} · G {fmt(e.nutrients.fat)}
+                        {e.unit === 'kcal' ? 'Solo calorías' : `${fmt(e.amount)} ${e.unit}`} · P {fmt(e.nutrients.protein)} · C {fmt(e.nutrients.carbs)} · G {fmt(e.nutrients.fat)}
                       </span>
                     </span>
                     <GradeBadge grade={e.grade} />
                     <span className="num bold" style={{ minWidth: '2.6rem', textAlign: 'right' }}>{fmt(e.nutrients.kcal)}</span>
                   </button>
+                  </SwipeRow>
                   </Fragment>
                 ))}
                 <Cell
                   className="cell-sep"
                   icon={<IconBook size={18} color="var(--accent)" />}
-                  title={<span style={{ color: 'var(--accent)' }}>Guardar como menú</span>}
+                  title={<span style={{ color: 'var(--accent-text)' }}>Guardar como menú</span>}
                   sub="Para añadirlo entero de un toque otro día"
                   onClick={() => setSaveMenu({ meal: m.id, items: entries.map(entryToPortion) })}
                 />
                 <Cell
                   className="cell-sep"
                   icon={<IconSparkles size={18} color="var(--accent)" />}
-                  title={<span style={{ color: 'var(--accent)' }}>Ver análisis de {m.label.toLowerCase()}</span>}
+                  title={<span style={{ color: 'var(--accent-text)' }}>Ver análisis de {m.label.toLowerCase()}</span>}
                   onClick={() => setAnalysis({ meal: m.id })}
                 />
               </div>
@@ -213,14 +247,14 @@ export function Diary() {
         meal={editing?.meal ?? 'desayuno'}
         onClose={() => setEditing(null)}
         onSave={(e) => {
+          const prev = editing!;
           actions.updateEntry(date, e);
           setEditing(null);
-          toast('Cambios guardados', '✅');
+          toast('Cambios guardados', '✅', undefined, { label: 'Deshacer', run: () => actions.updateEntry(date, prev) });
         }}
         onDelete={() => {
-          actions.removeEntry(date, editing!.id);
+          removeWithUndo([editing!.id], 'Alimento eliminado');
           setEditing(null);
-          toast('Alimento eliminado', '🗑️');
         }}
       />
       <QuickAddSheet
@@ -233,9 +267,8 @@ export function Diary() {
           setEditing(null);
         }}
         onDelete={() => {
-          actions.removeEntry(date, editing!.id);
+          removeWithUndo([editing!.id], 'Eliminado');
           setEditing(null);
-          toast('Eliminado', '🗑️');
         }}
       />
       <ActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} date={date} weightKg={currentWeight(state)} />
@@ -251,7 +284,7 @@ export function Diary() {
   );
 }
 
-export function DateNav({ date, setDate }: { date: string; setDate: (d: string) => void }) {
+export function DateNav({ date, setDate, anim }: { date: string; setDate: (d: string) => void; anim?: 'prev' | 'next' | null }) {
   return (
     <div className="date-nav">
       <button className="icon-btn" onClick={() => setDate(addDays(date, -1))} aria-label="Día anterior">
@@ -259,7 +292,7 @@ export function DateNav({ date, setDate }: { date: string; setDate: (d: string) 
       </button>
       <label className="date-btn">
         <IconCalendar size={18} />
-        <span className="ellipsis">{dayLabel(date)}</span>
+        <span key={date} className={`ellipsis${anim ? ` date-anim-${anim}` : ''}`}>{dayLabel(date)}</span>
         {/* El input nativo abre el selector de fecha de iOS */}
         <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Elegir fecha" />
       </label>
@@ -288,7 +321,7 @@ function ActivitiesCard({ date, onAdd }: { date: string; onAdd: () => void }) {
               className="icon-btn"
               onClick={() => {
                 actions.removeActivity(date, a.id);
-                toast('Actividad eliminada', '🗑️');
+                toast('Actividad eliminada', '🗑️', undefined, { label: 'Deshacer', run: () => actions.addActivity(date, a) });
               }}
               aria-label={`Eliminar ${a.name}`}
             >
@@ -298,7 +331,7 @@ function ActivitiesCard({ date, onAdd }: { date: string; onAdd: () => void }) {
         ))}
         <Cell
           icon={<span className="icon-tile" style={{ background: '#ff9500' }} aria-hidden="true">🏃</span>}
-          title={<span style={{ color: 'var(--accent)' }}>Añadir actividad</span>}
+          title={<span style={{ color: 'var(--accent-text)' }}>Añadir actividad</span>}
           sub={burned ? `${fmt(burned)} kcal quemadas hoy` : 'Caminar, correr, gimnasio…'}
           onClick={onAdd}
         />

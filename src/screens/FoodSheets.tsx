@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Food, FoodEntry, MealId, Menu, Nutrients, Portion } from '../types';
 import { Sheet } from '../components/Sheet';
 import { GradeBadge, NumberInput, Segmented, toNum } from '../components/common';
-import { IconCopy, IconPlus, IconSearch, IconSliders, IconTrash } from '../components/Icons';
+import { IconPlus, IconSearch, IconSliders, IconTrash } from '../components/Icons';
 import { toast } from '../components/Toast';
 import { BarcodeScanner } from '../components/BarcodeScanner';
-import { actions, uid, useAppState } from '../store/store';
+import { actions, uid, useAppState, useDay, useTargets, useUsage } from '../store/store';
 import { BASE_FOODS, normalize } from '../lib/foods';
 import { lookupBarcode } from '../lib/openfoodfacts';
-import { MEALS, estimateGrade, fmt, foodGrade, scaleNutrients } from '../lib/nutrition';
+import { MEALS, burnedKcal, dayTotals, estimateGrade, fmt, foodGrade, mealTotals, scaleNutrients } from '../lib/nutrition';
 import { addDays } from '../lib/dates';
 import { describeItems, menuTotals, portionToEntry, recipeToFood } from '../lib/recipes';
 import { suggestionsFor } from '../lib/suggestions';
+import { habitualAmount } from '../lib/usage';
 import { OnlineResults, useLocalSearch, useOnlineSearch, useRecipeFoods } from './FoodSearch';
 import { MenuAddSheet, RecipeEditorSheet } from './RecipeSheets';
 import { QuickTextSheet } from './QuickText';
@@ -64,12 +65,31 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
     toast(`${groupName} añadido a ${mealLabel}`, '✅', undefined, { label: 'Deshacer', run: () => actions.removeEntries(date, ids) });
   };
 
+  // Accesos rápidos: los que más usas primero (con empate, en este orden)
+  const quickActions = [
+    { id: 'texto', label: '✍️ Escribir lo que comí', run: () => setWriteOpen(true) },
+    { id: 'escanear', label: '📷 Escanear código', run: () => setBarcodeOpen(true) },
+    ...(yesterdayCount > 0 ? [{
+      id: 'ayer', label: `📋 ${mealLabel} de ayer`, run: () => {
+        const ids = actions.copyMeal(addDays(date, -1), date, meal);
+        const n = ids.length;
+        toast(`${n} alimento${n === 1 ? '' : 's'} copiado${n === 1 ? '' : 's'} de ayer`, '📋', undefined, { label: 'Deshacer', run: () => actions.removeEntries(date, ids) });
+        onClose();
+      }
+    }] : []),
+    { id: 'plato', label: '🍲 Nuevo plato', run: () => setNewRecipe(true) },
+    { id: 'alimento', label: '✏️ Crear alimento', run: () => setCustomOpen(true) },
+    { id: 'rapido', label: '⚡ Solo calorías', run: () => setQuickOpen(true) }
+  ].map((a, i) => ({ ...a, order: i, uses: state.actionUses[a.id] ?? 0 }))
+    .sort((a, b) => b.uses - a.uses || a.order - b.order);
+
   const list: Food[] = tab === 'recientes' ? state.recentFoods : tab === 'mios' ? [...myRecipeFoods, ...state.customFoods] : BASE_FOODS;
 
   return (
     <>
       <Sheet open={open} onClose={onClose} full title="Añadir alimento">
         <Segmented label="Comida" value={meal} onChange={setMeal} options={MEALS.map((m) => ({ value: m.id, label: m.label }))} />
+        <Budget date={date} meal={meal} />
 
         <form
           className="search"
@@ -95,23 +115,9 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         </form>
 
         <div className="chips" style={{ marginTop: '0.7rem' }}>
-          <button className="chip" onClick={() => setWriteOpen(true)}>✍️ Escribir lo que comí</button>
-          <button className="chip" onClick={() => setBarcodeOpen(true)}>📷 Escanear código</button>
-          <button className="chip" onClick={() => setQuickOpen(true)}>⚡ Añadido rápido</button>
-          <button className="chip" onClick={() => setNewRecipe(true)}>🍲 Nuevo plato</button>
-          <button className="chip" onClick={() => setCustomOpen(true)}>✏️ Crear alimento</button>
-          {yesterdayCount > 0 && (
-            <button
-              className="chip"
-              onClick={() => {
-                const n = actions.copyMeal(addDays(date, -1), date, meal);
-                toast(`${n} alimento${n === 1 ? '' : 's'} copiado${n === 1 ? '' : 's'} de ayer`, '📋');
-                onClose();
-              }}
-            >
-              <IconCopy size={14} /> {mealLabel} de ayer
-            </button>
-          )}
+          {quickActions.map((a) => (
+            <button key={a.id} className="chip" onClick={() => { actions.countAction(a.id); a.run(); }}>{a.label}</button>
+          ))}
         </div>
 
         {!query.trim() && suggestions.length > 0 && (
@@ -177,7 +183,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
               </div>
             ) : (
               <p className="muted center small" style={{ padding: '1.5rem 0.5rem' }}>
-                {tab === 'recientes' ? 'Aquí aparecerán los alimentos que vayas usando.' : 'Aún no has creado platos ni alimentos propios.'}
+                {tab === 'recientes' ? 'Aquí aparecerán los alimentos que vayas usando.' : <>Aún no tienes platos ni alimentos propios. Créalos con <b>🍲 Nuevo plato</b> o <b>✏️ Crear alimento</b>.</>}
               </p>
             )}
           </>
@@ -204,7 +210,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         onSave={(entry) => {
           actions.addEntry(date, entry);
           setQuickOpen(false);
-          toast('Añadido rápido guardado', '⚡');
+          toast('Calorías añadidas', '⚡', undefined, { label: 'Deshacer', run: () => actions.removeEntry(date, entry.id) });
         }}
       />
       <CustomFoodSheet
@@ -235,6 +241,25 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         }}
       />
     </>
+  );
+}
+
+/** Lo que te queda hoy y en esta comida, para decidir mientras añades */
+function Budget({ date, meal }: { date: string; meal: MealId }) {
+  const state = useAppState();
+  const day = useDay(date);
+  const targets = useTargets();
+  const eaten = dayTotals(day).kcal;
+  const budget = targets.kcal + (state.profile.addExerciseKcal ? burnedKcal(day) : 0);
+  const left = Math.round(budget - eaten);
+  const mealEaten = Math.round(mealTotals(day, meal).kcal);
+  const mealTarget = targets.meals[meal];
+  const label = MEALS.find((m) => m.id === meal)!.label;
+  return (
+    <p className="small muted num" style={{ margin: '0.55rem 0 0', textAlign: 'center' }} aria-live="polite">
+      {left >= 0 ? <>Te quedan <b style={{ color: 'var(--text)' }}>{fmt(left)} kcal</b> hoy</> : <>Llevas <b style={{ color: 'var(--warn)' }}>{fmt(-left)} kcal</b> de más hoy</>}
+      {' · '}{label}: {fmt(mealEaten)} de {fmt(mealTarget)}
+    </p>
   );
 }
 
@@ -300,6 +325,8 @@ export function FoodAmountSheet({
   const [mode, setMode] = useState<'serving' | 'grams'>('grams');
   const [amount, setAmount] = useState<number | ''>(100);
   const [meal, setMeal] = useState<MealId>(initialMeal);
+  const usage = useUsage();
+  const usual = food && !entry ? habitualAmount(usage.get(food.id)) : undefined;
 
   useEffect(() => {
     if (!food) return;
@@ -307,6 +334,16 @@ export function FoodAmountSheet({
     if (entry) {
       setMode('grams');
       setAmount(entry.amount);
+    } else if (usual) {
+      // Tu cantidad de siempre; en raciones si coincide con un número redondo de ellas
+      const r = food.serving ? usual / food.serving.grams : NaN;
+      if (food.serving && [0.5, 1, 1.5, 2, 2.5, 3, 4].some((x) => Math.abs(x - r) < 0.01)) {
+        setMode('serving');
+        setAmount(Math.round(r * 10) / 10);
+      } else {
+        setMode('grams');
+        setAmount(usual);
+      }
     } else if (food.serving) {
       setMode('serving');
       setAmount(1);
@@ -314,12 +351,16 @@ export function FoodAmountSheet({
       setMode('grams');
       setAmount(100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [food, entry, initialMeal]);
 
   if (!food) return null;
   const grams = mode === 'serving' && food.serving ? toNum(amount) * food.serving.grams : toNum(amount);
   const n = scaleNutrients(food.per100, grams);
-  const presets = food.serving ? [0.5, 1, 1.5, 2] : [50, 100, 150, 200];
+  // Atajos según el modo (antes, en “Gramos” se veían los de raciones: “0.5 g”)
+  const presets = mode === 'serving' && food.serving
+    ? [0.5, 1, 1.5, 2]
+    : [...new Set([...(usual ? [usual] : []), 50, 100, 150, 200])].sort((a, b) => a - b);
 
   const save = () => {
     if (grams <= 0) return;
@@ -386,11 +427,14 @@ export function FoodAmountSheet({
       <div className="field">
         <label>{mode === 'serving' ? `Raciones (${food.serving!.label} = ${food.serving!.grams} ${food.unit})` : `Cantidad en ${food.unit}`}</label>
         <NumberInput value={amount} onChange={setAmount} suffix={mode === 'serving' ? 'rac.' : food.unit} />
+        {usual !== undefined && Math.abs(grams - usual) < 0.5 && (
+          <span className="small muted" style={{ display: 'block', marginTop: '0.35rem' }}>↺ Tu cantidad habitual</span>
+        )}
       </div>
       <div className="chips" style={{ marginTop: '0.59rem' }}>
         {presets.map((p) => (
           <button key={p} className={`chip${toNum(amount) === p ? ' active' : ''}`} onClick={() => setAmount(p)}>
-            {mode === 'serving' ? `${String(p).replace('.', ',')} rac.` : `${p} ${food.unit}`}
+            {mode === 'serving' ? `${String(p).replace('.', ',')} rac.` : `${String(p).replace('.', ',')} ${food.unit}`}
           </button>
         ))}
       </div>
@@ -443,7 +487,7 @@ export function foodFromEntry(e: FoodEntry): Food {
   };
 }
 
-// ───────────────────────── Añadido rápido ─────────────────────────
+// ───────────────────────── Solo calorías (sin alimento) ─────────────────────────
 
 export function QuickAddSheet({
   open, meal: initialMeal, entry, onClose, onSave, onDelete
@@ -476,7 +520,7 @@ export function QuickAddSheet({
     onSave({
       id: entry?.id ?? uid(),
       meal,
-      name: name.trim() || 'Añadido rápido',
+      name: name.trim() || 'Solo calorías',
       amount: 0,
       unit: 'kcal',
       nutrients,
@@ -490,7 +534,7 @@ export function QuickAddSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title="Añadido rápido"
+      title="Añadir solo calorías"
       footer={
         <div className="row">
           {onDelete && (

@@ -4,10 +4,11 @@ import { Sheet } from '../components/Sheet';
 import { NumberInput, Segmented, toNum } from '../components/common';
 import { IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { toast } from '../components/Toast';
-import { actions, uid, useAppState } from '../store/store';
+import { actions, uid, useAppState, useUsage } from '../store/store';
+import { habitualAmount } from '../lib/usage';
 import { MEALS, fmt, scaleNutrients, sumNutrients } from '../lib/nutrition';
 import { portionToEntry } from '../lib/recipes';
-import { MAX_TEXT, parseQuickText, swapFood, type QuickItem } from '../lib/quicktext';
+import { MAX_TEXT, learnedPairs, parseQuickText, swapFood, type QuickItem } from '../lib/quicktext';
 import { useFoodPool } from './FoodSearch';
 import { FoodPickerSheet, MenuEditorSheet } from './RecipeSheets';
 
@@ -49,13 +50,16 @@ export function QuickTextSheet({ open, onClose, date, meal: initialMeal, onAdded
   }, [open, initialMeal]);
 
   // Lo que ya usas pesa más al elegir entre alimentos parecidos
+  const usage = useUsage();
   const preferred = useMemo(
-    () => [...state.recentFoods.map((f) => f.id), ...state.customFoods.map((f) => f.id), ...state.recipes.map((r) => `recipe:${r.id}`)],
-    [state.recentFoods, state.customFoods, state.recipes]
+    () => [...usage.keys(), ...state.recentFoods.map((f) => f.id), ...state.customFoods.map((f) => f.id), ...state.recipes.map((r) => `recipe:${r.id}`)],
+    [usage, state.recentFoods, state.customFoods, state.recipes]
   );
 
+  const habitual = (id: string) => habitualAmount(usage.get(id));
+
   const analyze = () => {
-    const items = parseQuickText(text, pool, { preferred, menus: state.menus });
+    const items = parseQuickText(text, pool, { preferred, menus: state.menus, aliases: state.textAliases, habitual });
     setRows(items.map((i) => ({ ...i, key: ++seq.current })));
     setExpanded(null);
     (document.activeElement as HTMLElement | null)?.blur();
@@ -74,6 +78,8 @@ export function QuickTextSheet({ open, onClose, date, meal: initialMeal, onAdded
     const now = new Date().toISOString();
     const entries = ready.map((r) => portionToEntry({ food: r.food, amount: r.amount }, meal, 1, uid(), now));
     const ids = actions.addEntries(date, entries);
+    // Lo que corregiste se recuerda para la próxima vez
+    actions.learnAliases(learnedPairs(rows ?? []));
     const seen = new Set<string>();
     for (const r of ready) {
       if (r.food.source === 'recipe' || seen.has(r.food.id)) continue;
@@ -132,7 +138,7 @@ export function QuickTextSheet({ open, onClose, date, meal: initialMeal, onAdded
             <div id="quick-text-help" className="card mt-s small">
               <p style={{ margin: 0 }}>
                 Separa con comas o con “y”. Puedes poner gramos (<b>200 g</b>), unidades (<b>2 huevos</b>) o medidas caseras
-                (<b>una cucharada</b>, <b>un vaso</b>, <b>medio</b>). Sin cantidad se usa la ración habitual.
+                (<b>una cucharada</b>, <b>un vaso</b>, <b>medio</b>). Si no pones cantidad, se usa la que sueles tomar o una ración estándar.
               </p>
               <p className="muted" style={{ margin: '0.5rem 0 0' }}>
                 🎙️ Para dictar, pulsa el micrófono del teclado. Tus menús guardados también valen: escribe su nombre.
@@ -164,7 +170,7 @@ export function QuickTextSheet({ open, onClose, date, meal: initialMeal, onAdded
                     open={expanded === r.key}
                     onToggle={() => setExpanded((k) => (k === r.key ? null : r.key))}
                     onAmount={(v) => update(r.key, (x) => ({ ...x, amount: Math.max(0, v), estimated: false }))}
-                    onSwap={(f) => { update(r.key, (x) => swapFood(x, f)); setExpanded(null); }}
+                    onSwap={(f) => { update(r.key, (x) => swapFood(x, f, habitual)); setExpanded(null); }}
                     onSearch={() => setSearching({ key: r.key, query: r.query })}
                     onRemove={() => remove(r.key)}
                   />
@@ -228,7 +234,7 @@ export function QuickTextSheet({ open, onClose, date, meal: initialMeal, onAdded
             }]);
           } else {
             update(s.key, (x) => ({
-              ...x, food: p.food, amount: p.amount, confidence: 'alta', estimated: false,
+              ...x, food: p.food, amount: p.amount, confidence: 'alta', estimated: false, habitual: false, corrected: true,
               qty: { n: p.amount, unit: p.food.unit, implicit: false },
               alternatives: [x.food, ...x.alternatives].filter((f): f is Food => !!f && f.id !== p.food.id)
             }));
@@ -281,7 +287,7 @@ function QuickRow({ row, open, onToggle, onAmount, onSwap, onSearch, onRemove }:
           <NumberInput value={row.amount} label={`Cantidad de ${food.name}`} suffix={food.unit} onChange={(v) => onAmount(toNum(v))} />
         </span>
         <span className="small muted num">
-          {fmt(kcal)} kcal{row.estimated && ' · ración habitual'}
+          {fmt(kcal)} kcal{row.habitual ? ' · tu cantidad habitual' : row.estimated ? ' · ración estándar' : ''}
         </span>
       </div>
       {open && (

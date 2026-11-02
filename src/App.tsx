@@ -1,18 +1,23 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { TabBar, type Tab } from './components/TabBar';
 import { Toasts, toast } from './components/Toast';
+import { whenNoSheet } from './components/Sheet';
+import { ConfirmHost } from './components/Confirm';
 import { actions, currentWeight, useAppState, useStoreReady, useTargets } from './store/store';
 import { evaluateAdaptive, shouldRunAdaptive } from './lib/adaptive';
 import { todayKey } from './lib/dates';
 import { ACHIEVEMENTS, computeStats } from './lib/gamification';
 import { Home } from './screens/Home';
 import { Diary } from './screens/Diary';
-import { Achievements } from './screens/Achievements';
-import { Recipes } from './screens/Recipes';
 import { Segmented } from './components/common';
-import { Pet } from './screens/Pet';
-import { Profile } from './screens/Profile';
-import { Onboarding } from './screens/Onboarding';
+
+// Inicio y Diario se cargan al abrir; el resto, la primera vez que entras
+// (quedan guardadas por el service worker, así que funcionan sin conexión)
+const Achievements = lazy(() => import('./screens/Achievements').then((m) => ({ default: m.Achievements })));
+const Recipes = lazy(() => import('./screens/Recipes').then((m) => ({ default: m.Recipes })));
+const Pet = lazy(() => import('./screens/Pet').then((m) => ({ default: m.Pet })));
+const Profile = lazy(() => import('./screens/Profile').then((m) => ({ default: m.Profile })));
+const Onboarding = lazy(() => import('./screens/Onboarding').then((m) => ({ default: m.Onboarding })));
 
 const TABS: Tab[] = ['inicio', 'diario', 'recetas', 'mascota', 'logros', 'perfil'];
 const SEEN_KEY = 'foodcontrol:seen-achievements';
@@ -72,7 +77,7 @@ export default function App() {
     actions.recordAdaptive(r.check);
     const diff = r.check.target - r.check.prevTarget;
     if (diff !== 0) {
-      setTimeout(() => toast(`Objetivo ajustado: ${r.check.prevTarget} → ${r.check.target} kcal`, '🎯', 4000), 600);
+      setTimeout(() => whenNoSheet(() => toast(`Objetivo ajustado: ${r.check.prevTarget} → ${r.check.target} kcal`, '🎯', 4000)), 600);
     }
   }, [ready, state]);
 
@@ -83,7 +88,10 @@ export default function App() {
     const fresh = ACHIEVEMENTS.filter((a) => !state.achievements[a.id] && a.check(stats));
     if (fresh.length) {
       actions.unlockAchievements(fresh.map((a) => a.id));
-      fresh.forEach((a, i) => setTimeout(() => toast(`¡Logro: ${a.title}! +${a.gems} 💎`, a.emoji, 3500), 400 + i * 900));
+      // Se muestran cuando cierres la hoja que tengas abierta, para no tapar lo que haces
+      setTimeout(() => whenNoSheet(() => {
+        fresh.forEach((a, i) => setTimeout(() => toast(`¡Logro: ${a.title}! +${a.gems} 💎`, a.emoji, 3500), i * 900));
+      }), 400);
     }
   }, [ready, state, targets]);
 
@@ -108,8 +116,9 @@ export default function App() {
     return (
       <main className="app">
         <div className="statusbar-bg" aria-hidden="true" />
-        <Onboarding />
+        <Suspense fallback={null}><Onboarding /></Suspense>
         <Toasts />
+        <ConfirmHost />
       </main>
     );
   }
@@ -118,6 +127,7 @@ export default function App() {
     <>
       <div className="statusbar-bg" aria-hidden="true" />
       <main className="app">
+      <Suspense fallback={<div className="screen" aria-busy="true" />}>
       {tab === 'inicio' && <Home go={go} openData={() => { go('perfil'); setDataOpen(true); }} />}
       {tab === 'diario' && <Diary />}
       {tab === 'recetas' && <Recipes />}
@@ -131,9 +141,11 @@ export default function App() {
         </>
       )}
       {tab === 'perfil' && <Profile dataOpen={dataOpen} setDataOpen={setDataOpen} />}
+      </Suspense>
       </main>
       <TabBar tab={tab} onChange={go} badges={{ mascota: Math.max(0, unlockedCount - seen) }} />
       <Toasts />
+      <ConfirmHost />
     </>
   );
 }

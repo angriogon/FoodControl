@@ -53,7 +53,7 @@ export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataO
         <Cell icon={<span className="icon-tile" style={{ background: '#ff9500' }}>🧪</span>} title="Objetivo adaptativo"
           sub={state.profile.kcalOverride ? 'En pausa (objetivo manual)' : !state.adaptive.enabled ? 'Desactivado' : state.adaptive.tdee != null ? `Gasto real estimado: ${fmt(state.adaptive.tdee)} kcal` : 'Calibrando con tus datos'}
           onClick={() => setAdaptiveOpen(true)} />
-        <Cell icon={<span className="icon-tile" style={{ background: '#007aff' }}>Aa</span>} title="Accesibilidad y apariencia"
+        <Cell icon={<span className="icon-tile" style={{ background: '#0062cc' }} aria-hidden="true">Aa</span>} title="Accesibilidad y apariencia"
           sub={`Texto: ${TEXT_LABEL[ui.textSize]} · Tema: ${THEME_LABEL[ui.theme]}`} onClick={() => setSettings('accesibilidad')} />
         <Cell icon={<span className="icon-tile" style={{ background: '#5ac8fa' }}>☁️</span>} title="Datos y copia de seguridad" onClick={() => setDataOpen(true)} />
       </div>
@@ -91,7 +91,7 @@ function WeightTab({ onAdd }: { onAdd: () => void }) {
         <div className="stat-trio">
           <div><div className="stat-value">{fmt(profile.startWeightKg, 1)}</div><div className="tiny muted">Inicial (kg)</div></div>
           <div>
-            <div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(current, 1)}</div>
+            <div className="stat-value" style={{ color: 'var(--accent-text)' }}>{fmt(current, 1)}</div>
             <div className="tiny muted">{insight.trendKg != null && weights.length >= 3 ? 'Tendencia (kg)' : 'Actual (kg)'}</div>
           </div>
           <div><div className="stat-value">{fmt(profile.goalWeightKg, 1)}</div><div className="tiny muted">Objetivo (kg)</div></div>

@@ -14,7 +14,25 @@ function lockScroll() {
 }
 function unlockScroll() {
   openSheets = Math.max(0, openSheets - 1);
-  if (openSheets === 0) document.documentElement.classList.remove('sheet-open');
+  if (openSheets === 0) {
+    document.documentElement.classList.remove('sheet-open');
+    // Lo que esperaba a que no hubiera hojas abiertas (p. ej. avisos de logros)
+    const q = waiting.splice(0);
+    if (q.length) setTimeout(() => q.forEach((fn) => fn()), 350);
+  }
+}
+
+const waiting: (() => void)[] = [];
+/** Hojas abiertas, de la más antigua a la de arriba */
+const stack: symbol[] = [];
+/**
+ * Ejecuta `fn` cuando no haya ninguna hoja abierta. Así los avisos que no
+ * vienen de lo que estás haciendo (un logro, el ajuste semanal) no tapan la
+ * pantalla en la que estás trabajando.
+ */
+export function whenNoSheet(fn: () => void) {
+  if (openSheets === 0) fn();
+  else waiting.push(fn);
 }
 
 interface Props {
@@ -42,14 +60,18 @@ export function Sheet({ open, onClose, title, children, footer, full, left }: Pr
   useEffect(() => {
     if (!open) return;
     lockScroll();
+    const me = Symbol('sheet');
+    stack.push(me);
     const prevFocus = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
+    // Escape cierra solo la hoja de arriba, no todas las que haya abiertas
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && stack[stack.length - 1] === me && closeRef.current();
     window.addEventListener('keydown', onKey);
     // Accesibilidad: lleva el foco a la hoja para VoiceOver
     requestAnimationFrame(() => {
       if (!sheetRef.current?.contains(document.activeElement)) sheetRef.current?.focus({ preventScroll: true });
     });
     return () => {
+      stack.splice(stack.indexOf(me), 1);
       unlockScroll();
       window.removeEventListener('keydown', onKey);
       prevFocus?.focus?.({ preventScroll: true });

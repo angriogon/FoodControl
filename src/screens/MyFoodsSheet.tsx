@@ -17,7 +17,7 @@ export function MyFoodsSheet({ open, onClose }: { open: boolean; onClose: () => 
         <p className="muted small" style={{ marginTop: '0.0rem' }}>
           Tus recetas y productos guardados. Aparecen primero al buscar.
         </p>
-        {!state.customFoods.length && <p className="center muted" style={{ padding: '1.76rem' }}>🥣<br />Aún no has creado ningún alimento.</p>}
+        {!state.customFoods.length && <p className="center muted" style={{ padding: '1.76rem' }}>🥣<br />Aún no has creado ningún alimento.<br /><span className="small">Créalos desde <b>Añadir alimento → ✏️ Crear alimento</b>, por ejemplo copiando la etiqueta de un producto.</span></p>}
         <div className="group">
           {state.customFoods.map((f) => (
             <FoodRow
@@ -32,10 +32,9 @@ export function MyFoodsSheet({ open, onClose }: { open: boolean; onClose: () => 
                     
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (confirm(`¿Eliminar “${f.name}”? Los registros ya hechos se conservan.`)) {
-                        actions.removeCustomFood(f.id);
-                        toast('Alimento eliminado', '🗑️');
-                      }
+                      const prev = state.customFoods;
+                      actions.removeCustomFood(f.id);
+                      toast(`“${f.name}” eliminado. Lo ya registrado se conserva`, '🗑️', undefined, { label: 'Deshacer', run: () => actions.restore({ customFoods: prev }) });
                     }}
                   >
                     <IconTrash size={16} color="var(--danger)" />

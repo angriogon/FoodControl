@@ -4,7 +4,7 @@ import { Sheet } from '../components/Sheet';
 import { NumberInput, Segmented, toNum } from '../components/common';
 import { IconCheck, IconPlus, IconSearch, IconTrash } from '../components/Icons';
 import { toast } from '../components/Toast';
-import { actions, uid, useAppState } from '../store/store';
+import { actions, getState, uid, useAppState } from '../store/store';
 import { BASE_FOODS } from '../lib/foods';
 import { MEALS, fmt, scaleNutrients, sumNutrients } from '../lib/nutrition';
 import { menuToEntries, portionNutrients, recipeTotals, recipeWeight } from '../lib/recipes';
@@ -165,7 +165,12 @@ export function RecipeEditorSheet({ open, recipe, onClose, onSaved }: {
           <div className="row">
             {!isNew && (
               <button className="btn gray" style={{ padding: '0 1rem' }} aria-label="Eliminar plato"
-                onClick={() => { if (confirm(`¿Eliminar “${recipe!.name}”? Lo ya registrado se conserva.`)) { actions.deleteRecipe(recipe!.id); onClose(); toast('Plato eliminado', '🗑️'); } }}>
+                onClick={() => {
+                  const prev = getState().recipes;
+                  actions.deleteRecipe(recipe!.id);
+                  onClose();
+                  toast(`“${recipe!.name}” eliminado. Lo ya registrado se conserva`, '🗑️', undefined, { label: 'Deshacer', run: () => actions.restore({ recipes: prev }) });
+                }}>
                 <IconTrash size={20} color="var(--danger)" />
               </button>
             )}
@@ -277,7 +282,12 @@ export function MenuEditorSheet({ open, menu, initialItems, initialMeal = 'comid
           <div className="row">
             {menu && (
               <button className="btn gray" style={{ padding: '0 1rem' }} aria-label="Eliminar menú"
-                onClick={() => { if (confirm(`¿Eliminar el menú “${menu.name}”?`)) { actions.deleteMenu(menu.id); onClose(); toast('Menú eliminado', '🗑️'); } }}>
+                onClick={() => {
+                  const prev = getState().menus;
+                  actions.deleteMenu(menu.id);
+                  onClose();
+                  toast(`Menú “${menu.name}” eliminado`, '🗑️', undefined, { label: 'Deshacer', run: () => actions.restore({ menus: prev }) });
+                }}>
                 <IconTrash size={20} color="var(--danger)" />
               </button>
             )}

@@ -45,12 +45,12 @@ export function WeightSheet({ open, onClose }: { open: boolean; onClose: () => v
       }
     >
       <div className="stepper row" style={{ justifyContent: 'center', gap: '1.06rem', margin: '0.47rem 0 0.35rem' }}>
-        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent)' }} onClick={() => setKg(Math.round((value - 0.1) * 10) / 10)} aria-label="Restar 0,1 kg">−</button>
+        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent-text)' }} onClick={() => setKg(Math.round((value - 0.1) * 10) / 10)} aria-label="Restar 0,1 kg">−</button>
         <div className="center">
           <div className="num" style={{ fontSize: '3.06rem', fontWeight: 700 }}>{fmt(value, 1)}</div>
           <div className="muted">kg</div>
         </div>
-        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent)' }} onClick={() => setKg(Math.round((value + 0.1) * 10) / 10)} aria-label="Sumar 0,1 kg">+</button>
+        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent-text)' }} onClick={() => setKg(Math.round((value + 0.1) * 10) / 10)} aria-label="Sumar 0,1 kg">+</button>
       </div>
       {delta != null && Math.abs(delta) >= 0.05 && (
         <p className="center small" style={{ color: delta < 0 ? 'var(--good)' : 'var(--warn)', margin: '0 0 0.71rem' }}>
@@ -77,7 +77,11 @@ export function WeightSheet({ open, onClose }: { open: boolean; onClose: () => v
               <div key={w.date} className="cell">
                 <span className="grow">{shortDate(w.date)}</span>
                 <b className="num">{fmt(w.kg, 1)} kg</b>
-                <button className="icon-btn" onClick={() => actions.removeWeight(w.date)} aria-label="Eliminar registro">
+                <button className="icon-btn" aria-label={`Eliminar el pesaje del ${shortDate(w.date)}`}
+                  onClick={() => {
+                    actions.removeWeight(w.date);
+                    toast('Pesaje eliminado', '🗑️', undefined, { label: 'Deshacer', run: () => actions.addWeight(w) });
+                  }}>
                   <IconTrash size={18} color="var(--danger)" />
                 </button>
               </div>

@@ -1,7 +1,8 @@
 import { useMemo, useSyncExternalStore } from 'react';
 import type { ActivityEntry, AdaptiveCheck, AppState, DayLog, Food, FoodEntry, Menu, Profile, Recipe, Species, UiSettings, WeightEntry } from '../types';
 import { loadState, saveState } from '../lib/storage';
-import { defaultState } from './defaults';
+import { MAX_ALIASES, defaultState } from './defaults';
+import { buildUsage, type UsageMap } from '../lib/usage';
 import { computeTargets, emptyDay } from '../lib/nutrition';
 import { todayKey } from '../lib/dates';
 import type { Slot } from '../lib/pet';
@@ -54,6 +55,28 @@ export function uid(): string {
 }
 
 export const actions = {
+  /** Vuelve a poner partes del estado tal como estaban (para “Deshacer”) */
+  restore(partial: Partial<AppState>) {
+    update((s) => ({ ...s, ...partial }));
+  },
+  /** Recuerda qué alimento querías decir con unas palabras (registro por texto) */
+  learnAliases(pairs: [string, string][]) {
+    if (!pairs.length) return;
+    update((s) => {
+      const next = { ...s.textAliases };
+      for (const [k, id] of pairs) {
+        delete next[k];
+        next[k] = id; // al final = más reciente
+      }
+      const keys = Object.keys(next);
+      // Límite: se olvidan las más antiguas
+      for (const k of keys.slice(0, Math.max(0, keys.length - MAX_ALIASES))) delete next[k];
+      return { ...s, textAliases: next };
+    });
+  },
+  countAction(id: string) {
+    update((s) => ({ ...s, actionUses: { ...s.actionUses, [id]: (s.actionUses[id] ?? 0) + 1 } }));
+  },
   addEntry(date: string, entry: FoodEntry) {
     updateDay(date, (d) => ({ ...d, entries: [...d.entries, entry] }));
   },
@@ -61,6 +84,17 @@ export const actions = {
   addEntries(date: string, entries: FoodEntry[]) {
     updateDay(date, (d) => ({ ...d, entries: [...d.entries, ...entries] }));
     return entries.map((e) => e.id);
+  },
+  /** Deshacer un borrado: vuelve a poner los alimentos en su posición original */
+  restoreEntries(date: string, removed: { entry: FoodEntry; index: number }[]) {
+    updateDay(date, (d) => {
+      const entries = [...d.entries];
+      for (const r of [...removed].sort((a, b) => a.index - b.index)) {
+        if (entries.some((e) => e.id === r.entry.id)) continue;
+        entries.splice(Math.min(r.index, entries.length), 0, r.entry);
+      }
+      return { ...d, entries };
+    });
   },
   removeEntries(date: string, ids: string[]) {
     const set = new Set(ids);
@@ -123,15 +157,15 @@ export const actions = {
   removeEntry(date: string, id: string) {
     updateDay(date, (d) => ({ ...d, entries: d.entries.filter((e) => e.id !== id) }));
   },
-  copyMeal(from: string, to: string, meal: FoodEntry['meal']) {
+  /** Copia una comida de otro día. Devuelve los ids creados (para deshacer) */
+  copyMeal(from: string, to: string, meal: FoodEntry['meal']): string[] {
     const src = state.days[from]?.entries.filter((e) => e.meal === meal) ?? [];
-    if (!src.length) return 0;
-    updateDay(to, (d) => ({
-      ...d,
-      entries: [...d.entries, ...src.map((e) => ({ ...e, id: uid(), createdAt: new Date().toISOString() }))]
-    }));
-    return src.length;
+    if (!src.length) return [];
+    const copies = src.map((e) => ({ ...e, id: uid(), createdAt: new Date().toISOString() }));
+    updateDay(to, (d) => ({ ...d, entries: [...d.entries, ...copies] }));
+    return copies.map((e) => e.id);
   },
+
   addActivity(date: string, a: ActivityEntry) {
     updateDay(date, (d) => ({ ...d, activities: [...d.activities, a] }));
   },
@@ -221,6 +255,17 @@ export function getState(): AppState {
 
 export function useAppState(): AppState {
   return useSyncExternalStore(subscribe, () => state);
+}
+
+// Uso de cada alimento: se recalcula solo cuando cambia el diario
+let usageCache: { days: AppState['days']; map: UsageMap } | null = null;
+export function getUsage(s: AppState = state): UsageMap {
+  if (usageCache?.days !== s.days) usageCache = { days: s.days, map: buildUsage(s.days) };
+  return usageCache.map;
+}
+export function useUsage(): UsageMap {
+  const s = useAppState();
+  return useMemo(() => getUsage(s), [s.days]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 export function useStoreReady(): boolean {

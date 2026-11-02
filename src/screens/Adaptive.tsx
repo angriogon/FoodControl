@@ -160,7 +160,11 @@ export function AdaptiveSheet({ open, onClose }: { open: boolean; onClose: () =>
       </div>
       {state.adaptive.tdee != null && (
         <button className="btn block danger mt" style={{ background: 'var(--card)' }}
-          onClick={() => { if (confirm('¿Volver a la fórmula y empezar la calibración de cero?')) { actions.resetAdaptive(); toast('Calibración reiniciada', '🧪'); } }}>
+          onClick={() => {
+            const prev = state.adaptive;
+            actions.resetAdaptive();
+            toast('Calibración reiniciada', '🧪', undefined, { label: 'Deshacer', run: () => actions.restore({ adaptive: prev }) });
+          }}>
           Reiniciar calibración
         </button>
       )}

@@ -17,7 +17,15 @@ Diseño blanco y minimalista al estilo de las apps de Apple: tipografía del sis
 | **Perfil** | **Tendencia de peso** (media móvil que filtra los vaivenes de líquidos), ritmo real en kg/semana, proyección hacia el objetivo, IMC, resumen nutricional de 7 días, objetivos y copias de seguridad. |
 | **Objetivo adaptativo** | Cada semana calcula tu **gasto real** con lo que comes (solo días completos) y la recta de tus pesajes de las últimas 5 semanas (1 kg ≈ 7.700 kcal) y **ajusta el objetivo solo**: como máximo ±150 kcal por semana, sin bajar de los mínimos de seguridad, sin contar dos veces el ejercicio. Aviso en Inicio con *Deshacer*, historial y opción de excluir días mal registrados. Se pausa si fijas un objetivo manual. |
 
-**Añadir alimentos**: base local de 350 alimentos y platos habituales en España (funciona sin conexión), búsqueda online en [Open Food Facts](https://world.openfoodfacts.org) (productos de supermercado con Nutri-Score), **escáner de código de barras con la cámara** (lector propio en WebAssembly, sin conexión una vez usado), menús, platos, alimentos propios, recientes, *añadido rápido* de kcal, **registro por texto** (escribes o dictas “200 g de pollo, arroz y una cucharada de aceite” y la app lo convierte en una lista revisable: entiende gramos, ml, unidades y medidas caseras, prefiere los alimentos que ya usas y reconoce tus menús por su nombre; todo en el iPhone, sin IA ni conexión), “copiar la comida de ayer” y **sugerencias “lo de siempre”** según la hora (combinaciones que repites y menús de esa comida).
+**Añadir alimentos**: base local de 350 alimentos y platos habituales en España (funciona sin conexión), búsqueda online en [Open Food Facts](https://world.openfoodfacts.org) (productos de supermercado con Nutri-Score), **escáner de código de barras con la cámara** (lector propio en WebAssembly, sin conexión una vez usado), menús, platos, alimentos propios, recientes, *solo calorías* (sin alimento), **registro por texto** (escribes o dictas “200 g de pollo, arroz y una cucharada de aceite” y la app lo convierte en una lista revisable: entiende gramos, ml, unidades y medidas caseras, prefiere los alimentos que ya usas y reconoce tus menús por su nombre; todo en el iPhone, sin IA ni conexión), “copiar la comida de ayer” y **sugerencias “lo de siempre”** según la hora (comidas que repites, aunque no sean idénticas, distinguiendo entre semana y fin de semana, y menús de esa comida).
+
+**La app aprende de cómo la usas** (todo calculado en el iPhone a partir de tu propio diario):
+- Propone **tu cantidad habitual** de cada alimento en vez de una ración genérica (también en el registro por texto si no escribes cantidad).
+- El **buscador** sube lo que más usas, entiende plurales, **sinónimos** (“papas”, “yogurt”, “bocata”) y **erratas** (“platno”).
+- El registro por texto **recuerda tus correcciones**: si cambias “pollo” por “Muslo de pollo”, la próxima vez ya sale muslo.
+- Los accesos rápidos de “Añadir alimento” se ordenan por uso, y se muestra **lo que te queda** del día y de esa comida mientras añades.
+
+**Gestos y deshacer**: en el Diario, **desliza un alimento a la izquierda** para borrarlo y **desliza el resumen a izquierda o derecha** para cambiar de día. Casi todo lo que borras o cambias se puede **deshacer** desde el aviso; solo lo irreversible (restaurar una copia, borrar todos los datos) pide confirmación.
 
 **Cálculo de objetivos**: Mifflin-St Jeor × factor de actividad, ± déficit/superávit según el ritmo semanal elegido (1 kg ≈ 7700 kcal), con un mínimo de seguridad. Macros y reparto por comidas configurables.
 
@@ -27,7 +35,9 @@ Diseño blanco y minimalista al estilo de las apps de Apple: tipografía del sis
 - **Zoom bloqueado** (pellizco y doble toque) a petición; el ajuste de tamaño de texto lo sustituye.
 - **Tema** claro, oscuro o automático, y opción de **contraste aumentado**.
 - Compatible con **VoiceOver**: anillos y barras anuncian su valor, botones de icono con etiqueta, controles segmentados y comidas plegables con estado (`aria-pressed`, `aria-expanded`).
-- Áreas táctiles de 44 pt, textos secundarios con contraste ≥ 4,5:1 y respeto a “Reducir movimiento”.
+- Áreas táctiles de 44 pt, textos con contraste ≥ 4,5:1 (WCAG AA) y respeto a “Reducir movimiento”.
+- Auditada con **axe-core** en todas las pantallas, en claro y en oscuro: sin incumplimientos salvo el zoom bloqueado, que es intencionado.
+- **Respuesta háptica** en iPhone con iOS 18 o posterior (Safari no permite `navigator.vibrate`; se usa el interruptor nativo de iOS) y vibración en Android.
 
 ## Dónde se guardan los datos
 

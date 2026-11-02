@@ -208,6 +208,13 @@ export interface AppState {
   /** Gemas gastadas en la tienda de la mascota */
   gemsSpent: number;
   ui: UiSettings;
+  /**
+   * Lo que el registro por texto ha aprendido de tus correcciones:
+   * palabras escritas (normalizadas) → id del alimento que elegiste
+   */
+  textAliases: Record<string, string>;
+  /** Veces que has usado cada acceso rápido de “Añadir alimento” (para ordenarlos) */
+  actionUses: Record<string, number>;
   lastBackupAt?: string;
   createdAt: string;
 }

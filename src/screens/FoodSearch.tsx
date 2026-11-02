@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Food } from '../types';
-import { useAppState } from '../store/store';
+import { useAppState, useUsage } from '../store/store';
 import { BASE_FOODS, searchFoods } from '../lib/foods';
 import { BASE_RECIPES } from '../lib/base-recipes';
 import { recipeToFood } from '../lib/recipes';
@@ -27,7 +27,8 @@ export function useFoodPool(): Food[] {
 
 export function useLocalSearch(query: string, limit = 40): Food[] {
   const pool = useFoodPool();
-  return useMemo(() => searchFoods(query, pool).slice(0, limit), [query, pool, limit]);
+  const usage = useUsage();
+  return useMemo(() => searchFoods(query, pool, (id) => usage.get(id)?.uses ?? 0).slice(0, limit), [query, pool, limit, usage]);
 }
 
 interface OnlineState {

@@ -1,5 +1,6 @@
 import type { Food, QualityGrade } from '../types';
 import { EXTRA_ROWS } from './foods-extra';
+import { oneTypo, stem, variants } from './textmatch';
 
 // Valores aproximados por 100 g (o 100 ml), basados en tablas de composición
 // habituales (BEDCA / USDA). Suficientemente precisos para un diario personal.
@@ -149,18 +150,54 @@ export function normalize(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
-export function searchFoods(query: string, pool: Food[]): Food[] {
+/**
+ * Busca en una lista de alimentos.
+ * - Entiende plurales, sinónimos (“papas”, “yogurt”, “bocata”) y, si hay
+ *   pocos resultados, una errata por palabra (“platno”, “yougur”).
+ * - `uses` (veces que has usado cada alimento) sube lo tuyo: al escribir “yog”
+ *   sale primero tu yogur de siempre.
+ */
+export function searchFoods(query: string, pool: Food[], uses?: (id: string) => number): Food[] {
   const q = normalize(query);
   if (!q) return [];
   const terms = q.split(/\s+/);
-  return pool
-    .map((f) => {
-      const n = normalize(`${f.name} ${f.brand ?? ''}`);
-      if (!terms.every((t) => n.includes(t))) return null;
-      const score = n.startsWith(q) ? 0 : n.split(/\s+/).some((w) => w.startsWith(terms[0])) ? 1 : 2;
-      return { f, score };
-    })
-    .filter((x): x is { f: Food; score: number } => x !== null)
+  const termVariants = terms.map(variants);
+  const scored: { f: Food; score: number }[] = [];
+  const typoCandidates: Food[] = [];
+
+  // Lo escrito se busca dentro del nombre (“pa” → pan, patata); sus variantes
+  // (singular, sinónimo) solo como palabra o inicio de palabra, para que “té”
+  // no encuentre todo lo que contenga “te”.
+  const hits = (n: string, words: string[], i: number) =>
+    n.includes(terms[i]) || termVariants[i].some((v) => v !== terms[i] && words.some((w) => w === v || (v.length >= 4 && w.startsWith(v))));
+
+  for (const f of pool) {
+    const n = normalize(`${f.name} ${f.brand ?? ''}`);
+    const words = n.split(/[^a-z0-9ñ]+/).filter(Boolean);
+    if (terms.every((_, i) => hits(n, words, i))) {
+      // 0 = empieza igual · 0,5 = palabra exacta (“papas” → patata) · 1 = inicio de palabra (papaya) · 2 = dentro
+      let score = n.startsWith(q) ? 0
+        : words.some((w) => termVariants[0].includes(w)) ? 0.5
+        : words.some((w) => termVariants[0].some((v) => w.startsWith(v))) ? 1 : 2;
+      const u = uses?.(f.id) ?? 0;
+      // Lo que usas sube, pero sin pasar por delante de una coincidencia mucho mejor
+      if (u > 0) score -= Math.min(1.5, 0.5 + u / 10);
+      scored.push({ f, score });
+    } else {
+      typoCandidates.push(f);
+    }
+  }
+
+  // Con pocos resultados, se aceptan erratas (solo en palabras de 4+ letras)
+  if (scored.length < 3 && terms.some((t) => t.length >= 4)) {
+    for (const f of typoCandidates) {
+      const words = normalize(`${f.name} ${f.brand ?? ''}`).split(/[^a-z0-9ñ]+/).filter(Boolean);
+      const ok = termVariants.every((vs) => vs.some((v) => words.some((w) => (v.length >= 3 && w.startsWith(v)) || oneTypo(v, w) || oneTypo(v, stem(w)))));
+      if (ok) scored.push({ f, score: 3 - Math.min(1, (uses?.(f.id) ?? 0) / 10) });
+    }
+  }
+
+  return scored
     .sort((a, b) => a.score - b.score || a.f.name.length - b.f.name.length)
     .map((x) => x.f);
 }

@@ -34,23 +34,16 @@ export function suggestionsFor(state: AppState, meal: MealId, date: string, max 
   const out: Suggestion[] = [];
   const already = new Set((state.days[date]?.entries ?? []).filter((e) => e.meal === meal).map((e) => e.foodId ?? e.name));
 
-  // 1) Combinación habitual: misma lista de alimentos a esta comida ≥ 2 veces en 45 días
-  const counts = new Map<string, { n: number; lastDate: string }>();
-  for (let i = 1; i <= 45; i++) {
-    const d = addDays(date, -i);
-    const entries = state.days[d]?.entries.filter((e) => e.meal === meal) ?? [];
-    if (!entries.length) continue;
-    const sig = [...new Set(entries.map((e) => e.foodId ?? e.name))].sort().join('|');
-    const c = counts.get(sig);
-    if (c) c.n++;
-    else counts.set(sig, { n: 1, lastDate: d });
-  }
-  const habitual = [...counts.entries()].filter(([, c]) => c.n >= 2).sort((a, b) => b[1].n - a[1].n)[0];
+  // 1) Comida habitual: la combinación que más se repite a esta comida en 45
+  //    días, aceptando comidas “casi iguales” (≥ 60 % de alimentos en común:
+  //    “lo de siempre pero sin plátano” cuenta). Si hay datos suficientes, se
+  //    miran solo los días del mismo tipo (laborable o fin de semana).
+  const habitual = habitualMeal(state, meal, date);
   if (habitual) {
-    const [sig, { n, lastDate }] = habitual;
-    const ids = sig.split('|');
+    const { day, n } = habitual;
+    const portions = state.days[day].entries.filter((e) => e.meal === meal).map(entryToPortion);
+    const ids = portions.map((p) => p.food.id);
     if (!ids.every((id) => already.has(id))) {
-      const portions = state.days[lastDate].entries.filter((e) => e.meal === meal).map(entryToPortion);
       out.push({
         key: `habitual-${meal}`,
         title: `Tu ${MEAL_NAME[meal]} habitual`,
@@ -78,4 +71,38 @@ export function suggestionsFor(state: AppState, meal: MealId, date: string, max 
     });
   }
   return out.slice(0, max);
+}
+
+const isWeekend = (d: string) => {
+  const w = new Date(`${d}T12:00:00`).getDay();
+  return w === 0 || w === 6;
+};
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  let inter = 0;
+  for (const x of a) if (b.has(x)) inter++;
+  return inter / (a.size + b.size - inter);
+}
+
+/**
+ * Busca el día cuya comida se parece a más días (incluido él mismo) y devuelve
+ * el más reciente de ese grupo, con cuántas veces se repite. Exige ≥ 2.
+ */
+export function habitualMeal(state: AppState, meal: MealId, date: string, windowDays = 45): { day: string; n: number } | null {
+  const days: { day: string; set: Set<string> }[] = [];
+  for (let i = 1; i <= windowDays; i++) {
+    const d = addDays(date, -i);
+    const entries = state.days[d]?.entries.filter((e) => e.meal === meal) ?? [];
+    if (entries.length) days.push({ day: d, set: new Set(entries.map((e) => e.foodId ?? e.name)) });
+  }
+  // Mismo tipo de día si hay al menos 3 así; si no, todos
+  const sameType = days.filter((x) => isWeekend(x.day) === isWeekend(date));
+  const pool = sameType.length >= 3 ? sameType : days;
+  let best: { day: string; n: number } | null = null;
+  for (const a of pool) {
+    const n = pool.filter((b) => jaccard(a.set, b.set) >= 0.6).length;
+    // `pool` va de más reciente a más antiguo: con empate gana el más reciente
+    if (n >= 2 && (!best || n > best.n)) best = { day: a.day, n };
+  }
+  return best;
 }

@@ -4,7 +4,7 @@ import { Mascot } from '../components/Mascot';
 import { Cell, ProgressBar } from '../components/common';
 import { Gem, IconLock, IconPencil } from '../components/Icons';
 import { toast } from '../components/Toast';
-import { actions, useAppState } from '../store/store';
+import { actions, getState, useAppState } from '../store/store';
 import { useGameStatus } from '../lib/hooks';
 import {
   LEAF_LEVELS, PET_ITEMS, RARITY, SLOT_LABELS, SLOT_ORDER, SPECIES, SPECIES_ORDER, achievementForItem, isItemOwned, rarityOf, type PetItem, type Slot
@@ -43,11 +43,13 @@ export function Pet() {
         toast(`Te faltan ${item.price - game.balance} gemas`, '💎');
         return;
       }
-      if (confirm(`¿Comprar “${item.name}” por ${item.price} gemas?`)) {
-        actions.purchase(item.id, item.price);
-        actions.equip(item.slot, value);
-        toast(`¡${item.name} desbloqueado!`, '🎉');
-      }
+      // Sin “¿Seguro?”: se compra al momento y se puede deshacer (devuelve las gemas)
+      const prev = getState();
+      actions.purchase(item.id, item.price);
+      actions.equip(item.slot, value);
+      toast(`${item.name} comprado por ${item.price} 💎`, '🎉', undefined, {
+        label: 'Deshacer', run: () => actions.restore({ pet: prev.pet, gemsSpent: prev.gemsSpent })
+      });
       return;
     }
     const ach = achievementForItem(item.id);
@@ -108,7 +110,11 @@ export function Pet() {
 
       <div className="row between" style={{ margin: '1.8rem 0 0.7rem' }}>
         <h2 className="section-title" style={{ margin: 0 }}>Personalizar</h2>
-        <button className="btn plain small" onClick={() => { actions.resetOutfit(); toast('Accesorios quitados', '🧺'); }}>Quitar todo</button>
+        <button className="btn plain small" onClick={() => {
+          const prev = getState().pet;
+          actions.resetOutfit();
+          toast('Accesorios quitados', '🧺', undefined, { label: 'Deshacer', run: () => actions.restore({ pet: prev }) });
+        }}>Quitar todo</button>
       </div>
       <div className="chips" role="group" aria-label="Zona a personalizar" style={{ marginBottom: '0.8rem' }}>
         {SLOT_ORDER.map((s) => {
@@ -117,7 +123,7 @@ export function Pet() {
           return (
             <button key={s} className={`chip${slot === s ? ' active' : ''}`} aria-pressed={slot === s} onClick={() => setSlot(s)}
               aria-label={`${SLOT_LABELS[s]}: tienes ${own} de ${all.length}`}>
-              {SLOT_LABELS[s]} <span style={{ opacity: 0.6 }} className="num">{own}/{all.length}</span>
+              {SLOT_LABELS[s]} <span style={{ opacity: 0.75 }} className="num">{own}/{all.length}</span>
             </button>
           );
         })}
@@ -151,7 +157,7 @@ export function Pet() {
               {!owned && <span className="lock" aria-hidden="true"><IconLock size={11} /></span>}
               <span aria-hidden="true">{item.name}</span>
               {rarity && !owned && (
-                <span className="tiny bold" style={{ color: RARITY[rarity].color }} aria-hidden="true">{RARITY[rarity].name}</span>
+                <span className={`tiny bold rarity-${rarity}`} aria-hidden="true">{RARITY[rarity].name}</span>
               )}
               {status && (
                 <span className="tiny muted ellipsis" style={{ maxWidth: '100%' }} aria-hidden="true">

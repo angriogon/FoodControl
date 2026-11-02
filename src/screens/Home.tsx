@@ -104,7 +104,7 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
           <span style={{ fontSize: '1.4rem' }} aria-hidden="true">☁️</span>
           <div className="small grow">
             <b>Haz una copia de seguridad</b>
-            <div className="muted">{daysSinceBackup == null ? 'Aún no has guardado ninguna copia.' : `Tu última copia es de hace ${daysSinceBackup} días.`} Guárdala en iCloud Drive en 2 toques.</div>
+            <div className="muted">{daysSinceBackup == null ? 'Aún no has guardado ninguna copia.' : `Tu última copia es de hace ${daysAgo(daysSinceBackup)}.`} Guárdala en iCloud Drive en 2 toques.</div>
           </div>
           <IconChevronRight size={16} className="chevron" />
         </button>
@@ -172,7 +172,7 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
         <Cell
           icon={<span className="icon-tile" style={{ background: '#5ac8fa' }}>⚖️</span>}
           title="Mi peso"
-          sub={lastWeight ? `${fmt(lastWeight.kg, 1)} kg · ${lastWeight.date === today ? 'hoy' : `hace ${diffDays(today, lastWeight.date)} días`}` : 'Sin registros todavía'}
+          sub={lastWeight ? `${fmt(lastWeight.kg, 1)} kg · ${lastWeight.date === today ? 'hoy' : `hace ${daysAgo(diffDays(today, lastWeight.date))}`}` : 'Sin registros todavía'}
           onClick={() => setWeightOpen(true)}
         />
         <Cell
@@ -202,7 +202,7 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
         <Cell
           icon={<span className="icon-tile" style={{ background: '#007aff' }}>☁️</span>}
           title="Copia de seguridad"
-          sub={daysSinceBackup == null ? 'Sin copias' : daysSinceBackup === 0 ? 'Hecha hoy' : `Hace ${daysSinceBackup} días`}
+          sub={daysSinceBackup == null ? 'Sin copias' : daysSinceBackup === 0 ? 'Hecha hoy' : `Hace ${daysAgo(daysSinceBackup)}`}
           onClick={openData}
         />
       </div>
@@ -221,4 +221,9 @@ function petLine(name: string, mood: string, done: number, total: number): strin
   if (done === total) return `¡${name} está orgulloso! Has completado todo hoy.`;
   if (mood === 'eufórico') return `¡${name} no cabe en sí de alegría!`;
   return `Llevas ${done} de ${total} tareas. ¡Sigue así!`;
+}
+
+/** “1 día”, “3 días” */
+function daysAgo(n: number): string {
+  return `${n} día${n === 1 ? '' : 's'}`;
 }

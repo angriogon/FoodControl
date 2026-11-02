@@ -42,6 +42,8 @@ export function defaultState(): AppState {
       purchased: []
     },
     ui: { textSize: 'auto', theme: 'light', highContrast: false },
+    textAliases: {},
+    actionUses: {},
     achievements: {},
     gemsSpent: 0,
     createdAt: new Date().toISOString()
@@ -257,6 +259,26 @@ function equippedFrom(v: unknown, base: Equipped): Equipped {
   return out;
 }
 
+export const MAX_ALIASES = 300;
+export const QUICK_ACTIONS = ['texto', 'escanear', 'rapido', 'plato', 'alimento', 'ayer'] as const;
+
+function aliasesFrom(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!isObj(v)) return out;
+  for (const k of Object.keys(v).slice(0, MAX_ALIASES)) {
+    const id = v[k];
+    if (own(v, k) && /^[a-z0-9ñ ]{1,60}$/.test(k) && typeof id === 'string' && id.length > 0 && id.length <= 200) out[k] = id;
+  }
+  return out;
+}
+
+function actionUsesFrom(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!isObj(v)) return out;
+  for (const k of QUICK_ACTIONS) if (own(v, k)) out[k] = Math.round(num(v[k], 0, 0, 1e6));
+  return out;
+}
+
 /**
  * Convierte cualquier entrada (copia de seguridad, datos antiguos o dañados)
  * en un estado válido. Nunca lanza excepciones.
@@ -320,6 +342,8 @@ export function migrate(input: unknown): AppState {
       theme: oneOf(ui.theme, ['auto', 'light', 'dark'] as const, base.ui.theme),
       highContrast: ui.highContrast === true
     },
+    textAliases: aliasesFrom(o.textAliases),
+    actionUses: actionUsesFrom(o.actionUses),
     achievements,
     gemsSpent: num(o.gemsSpent, 0, 0, 1e9),
     lastBackupAt: typeof o.lastBackupAt === 'string' ? o.lastBackupAt.slice(0, 40) : undefined,

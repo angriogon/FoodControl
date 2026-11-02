@@ -32,8 +32,9 @@ export function ActivitySheet({ open, onClose, date, weightKg }: { open: boolean
 
   const save = () => {
     if (kcal <= 0) return;
+    const id = uid();
     actions.addActivity(date, {
-      id: uid(),
+      id,
       activityId: picked?.id ?? 'custom',
       name: picked?.name ?? (customName.trim() || 'Actividad'),
       minutes: Math.round(toNum(minutes)),
@@ -41,7 +42,7 @@ export function ActivitySheet({ open, onClose, date, weightKg }: { open: boolean
       emoji: picked?.emoji ?? '⭐',
       createdAt: new Date().toISOString()
     });
-    toast(`+${kcal} kcal quemadas`, '🔥');
+    toast(`+${kcal} kcal quemadas`, '🔥', undefined, { label: 'Deshacer', run: () => actions.removeActivity(date, id) });
     onClose();
   };
 

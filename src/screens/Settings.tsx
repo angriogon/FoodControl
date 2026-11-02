@@ -4,6 +4,7 @@ import { Sheet } from '../components/Sheet';
 import { NumberInput, Segmented, Switch, toNum } from '../components/common';
 import { IconShare } from '../components/Icons';
 import { toast } from '../components/Toast';
+import { confirmDialog } from '../components/Confirm';
 import { actions, currentWeight, flush, useAppState } from '../store/store';
 import { ACTIVITY_FACTORS, MEALS, bmr, computeTargets, fmt, tdee } from '../lib/nutrition';
 import { exportBackup, isStandalone, parseBackup, storageInfo } from '../lib/storage';
@@ -240,9 +241,15 @@ function DataSettings({ open, onClose }: { open: boolean; onClose: () => void })
     try {
       const next = await parseBackup(file);
       const days = Object.keys(next.days).length;
-      if (!confirm(`La copia contiene ${days} días registrados y ${next.weights.length} pesos.\n\nSe REEMPLAZARÁN los datos actuales de este iPhone. ¿Continuar?`)) return;
+      const ok = await confirmDialog({
+        title: '¿Restaurar esta copia?',
+        message: `La copia tiene ${days} días registrados y ${next.weights.length} pesajes.\n\nSustituirá todos los datos que hay ahora en este iPhone.`,
+        confirmLabel: 'Restaurar copia',
+        destructive: true
+      });
+      if (!ok) return;
       actions.replaceState(next);
-      toast('Copia restaurada correctamente', '✅');
+      toast('Copia restaurada', '✅');
       onClose();
     } catch (err) {
       toast((err as Error).message, '⚠️', 4000);
@@ -298,9 +305,16 @@ function DataSettings({ open, onClose }: { open: boolean; onClose: () => void })
       <button
         className="btn block danger"
         style={{ background: 'var(--card)' }}
-        onClick={() => {
-          if (!confirm('¿Borrar TODOS los datos de FoodControl de este iPhone? Esta acción no se puede deshacer.')) return;
-          if (!confirm('Última confirmación: ¿has exportado una copia? Se borrará todo.')) return;
+        onClick={async () => {
+          const ago = state.lastBackupAt ? Math.floor((Date.now() - new Date(state.lastBackupAt).getTime()) / 86400000) : null;
+          const ok = await confirmDialog({
+            title: '¿Borrar todos los datos?',
+            message: `Se borrarán tu diario, pesajes, recetas, menús y mascota de este iPhone. No se puede deshacer.\n\n${
+              ago == null ? '⚠️ No has exportado ninguna copia de seguridad.' : `Tu última copia es de hace ${ago === 0 ? 'menos de un día' : `${ago} día${ago === 1 ? '' : 's'}`}.`}`,
+            confirmLabel: 'Borrar todo',
+            destructive: true
+          });
+          if (!ok) return;
           actions.reset();
           toast('Datos borrados', '🗑️');
           onClose();

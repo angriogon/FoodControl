@@ -1,5 +1,6 @@
 import type { Food, Menu, Portion } from '../types';
 import { normalize } from './foods';
+import { oneTypo, stem, variants } from './textmatch';
 
 // ─────────────── Registro rápido por texto ───────────────
 // Convierte un texto libre ("200 g de pollo, un plátano y una cucharada de
@@ -34,6 +35,10 @@ export interface QuickItem {
   estimated: boolean;
   /** Si procede de un menú guardado, su nombre */
   menu?: string;
+  /** La cantidad es la que sueles tomar (no la escribiste) */
+  habitual?: boolean;
+  /** El usuario lo cambió en la revisión (se aprende al guardar) */
+  corrected?: boolean;
 }
 
 export const MAX_TEXT = 1000;
@@ -67,13 +72,7 @@ const HOUSEHOLD: Record<string, number | undefined> = {
 };
 const HOUSEHOLD_ALIASES: Record<string, string> = { cucharadas: 'cucharada', cdas: 'cda', cucharaditas: 'cucharadita', cdtas: 'cdta', unidades: 'unidad', uds: 'unidad', ud: 'unidad' };
 
-/** Plural → singular, suficiente para emparejar palabras: “plátanos” ≈ “plátano”, “limones” ≈ “limón”, “nueces” ≈ “nuez” */
-export function stem(w: string): string {
-  if (w.length > 4 && w.endsWith('ces')) return `${w.slice(0, -3)}z`;
-  if (w.length > 4 && /[nrldj]es$/.test(w)) return w.slice(0, -2);
-  if (w.length > 3 && w.endsWith('s')) return w.slice(0, -1);
-  return w;
-}
+export { stem };
 
 function unitKey(w: string): string | undefined {
   const a = HOUSEHOLD_ALIASES[w] ?? w;
@@ -91,10 +90,14 @@ function nameWords(name: string): { core: string[]; all: string[] } {
   return { core, all };
 }
 
-function wordMatches(term: string, word: string): boolean {
+function wordMatches(term: string, word: string, typos = false): boolean {
   if (term === word) return true;
   // Prefijo: “semi” → “semidesnatada”, “yogur” → “yogures”
-  return term.length >= 4 && word.startsWith(term);
+  if (term.length >= 4 && word.startsWith(term)) return true;
+  // Sinónimos: “papas” → patata, “bocata” → bocadillo
+  if (variants(term).some((v) => v !== term && (v === word || (v.length >= 4 && word.startsWith(v))))) return true;
+  // Erratas (solo si no hay nada mejor): “platno” → plátano
+  return typos && oneTypo(term, word);
 }
 
 /**
@@ -103,7 +106,8 @@ function wordMatches(term: string, word: string): boolean {
  */
 const DEFAULTS: Record<string, string> = {
   aceite: 'base:aceite-oliva', leche: 'base:leche-semi', pollo: 'base:pechuga-pollo', tostada: 'base:pan-blanco',
-  cafe: 'base:cafe-leche', queso: 'base:queso-fresco', atun: 'base:atun-natural', yogur: 'base:yogur-natural'
+  cafe: 'base:cafe-leche', queso: 'base:queso-fresco', atun: 'base:atun-natural', yogur: 'base:yogur-natural',
+  avena: 'base:avena', patata: 'base:patata-cocida', papa: 'base:patata-cocida'
 };
 
 interface Candidate { food: Food; score: number; full: boolean }
@@ -120,22 +124,23 @@ type Indexed = ReturnType<typeof indexPool>;
  * por la primera palabra buscada, +1,5 si es un plato (al escribir “pollo”
  * se espera pollo, no “Pollo al horno con patatas”), −4 si ya lo has usado (por encima de los valores por defecto).
  */
-function rank(terms: string[], index: Indexed, preferred: Set<string>): Candidate[] {
+function rank(terms: string[], index: Indexed, preferred: Set<string>, typos = false): Candidate[] {
   if (!terms.length) return [];
   const out: Candidate[] = [];
   for (const { food, core, all } of index) {
     // Valor por defecto aunque el nombre no contenga la palabra (“tostada” → pan)
     if (terms.length === 1 && DEFAULTS[terms[0]] === food.id) { out.push({ food, score: -3, full: true }); continue; }
-    const matched = terms.filter((t) => all.some((w) => wordMatches(t, w)));
+    const matched = terms.filter((t) => all.some((w) => wordMatches(t, w, typos)));
     if (!matched.length) continue;
     const full = matched.length === terms.length;
     // Coincidencia parcial: exige al menos la primera palabra (suele ser el sustantivo) y la mitad de las palabras
     if (!full && (!matched.includes(terms[0]) || matched.length < Math.ceil(terms.length / 2))) continue;
-    const extra = core.filter((w) => !terms.some((t) => wordMatches(t, w))).length;
+    const extra = core.filter((w) => !terms.some((t) => wordMatches(t, w, typos))).length;
     // Coincidencia exacta mejor que por prefijo (“semi” → “semidesnatada” vale, pero cuenta menos)
-    const prefixOnly = terms.filter((t) => !all.includes(t) && all.some((w) => wordMatches(t, w))).length;
+    const prefixOnly = terms.filter((t) => !all.includes(t) && all.some((w) => wordMatches(t, w, typos))).length;
     let score = extra + prefixOnly * 0.5;
-    if (!core.length || !wordMatches(terms[0], core[0])) score += 1;
+    if (!core.length || !wordMatches(terms[0], core[0], typos)) score += 1;
+    if (typos) score += 1;
     if (food.source === 'recipe' && extra > 0) score += 1.5;
     if (preferred.has(food.id)) score -= 4;
     if (!full) score += 10 + (terms.length - matched.length) * 2;
@@ -267,6 +272,10 @@ export interface ParseOptions {
   /** Ids de alimentos que el usuario ya usa (recientes, propios): se prefieren */
   preferred?: Iterable<string>;
   menus?: Menu[];
+  /** Correcciones aprendidas: palabras (como `QuickItem.query`) → id de alimento */
+  aliases?: Record<string, string>;
+  /** Tu cantidad habitual de un alimento, para cuando no escribes cantidad */
+  habitual?: (foodId: string) => number | undefined;
 }
 
 /**
@@ -278,6 +287,8 @@ export function parseQuickText(text: string, pool: Food[], opts: ParseOptions = 
   const index = indexPool(pool);
   const preferred = new Set(opts.preferred ?? []);
   const menus = opts.menus ?? [];
+  const aliases = opts.aliases ?? {};
+  const byId = new Map(pool.map((f) => [f.id, f]));
   const items: QuickItem[] = [];
 
   const build = (source: string, p: Parsed): QuickItem[] | null => {
@@ -290,15 +301,21 @@ export function parseQuickText(text: string, pool: Food[], opts: ParseOptions = 
         alternatives: [], confidence: 'alta', estimated: false, menu: m.name
       }));
     }
-    const ranked = rank(p.name, index, preferred);
-    const best = ranked[0];
     const query = p.name.join(' ');
+    let ranked = rank(p.name, index, preferred);
+    if (!ranked.some((c) => c.full)) {
+      const typo = rank(p.name, index, preferred, true);
+      if (typo.some((c) => c.full)) ranked = typo;
+    }
+    // Lo que corregiste otra vez manda sobre la búsqueda
+    const learned = aliases[query] ? byId.get(aliases[query]) : undefined;
+    if (learned) ranked = [{ food: learned, score: -99, full: true }, ...ranked.filter((c) => c.food.id !== learned.id)];
+    const best = ranked[0];
     if (!best) return null;
-    const { amount, estimated } = resolveAmount(best.food, p.qty, p.metric);
-    return [{
-      source, query, food: best.food, amount, qty: p.qty, estimated, confidence: best.full ? 'alta' : 'baja',
+    return [withAmount({
+      source, query, food: best.food, amount: 0, qty: p.qty, estimated: false, confidence: best.full ? 'alta' : 'baja',
       alternatives: ranked.slice(1, 6).map((c) => c.food)
-    }];
+    }, best.food, p.metric, opts.habitual)];
   };
 
   const unmatched = (source: string, p: Parsed): QuickItem => ({
@@ -332,9 +349,24 @@ export function parseQuickText(text: string, pool: Food[], opts: ParseOptions = 
   return items.slice(0, MAX_ITEMS);
 }
 
-/** Recalcula la cantidad al cambiar de alimento (2 huevos → 2 unidades del nuevo alimento) */
-export function swapFood<T extends QuickItem>(item: T, food: Food): T {
-  const metric = item.qty.unit === 'g' || item.qty.unit === 'ml' ? { value: item.amount } : undefined;
+/** Calcula la cantidad para un alimento; sin cantidad escrita, usa la habitual si la hay */
+function withAmount<T extends QuickItem>(item: T, food: Food, metric: { value: number } | undefined, habitual?: (id: string) => number | undefined): T {
+  const usual = item.qty.implicit ? habitual?.(food.id) : undefined;
+  if (usual) return { ...item, food, amount: usual, estimated: false, habitual: true };
   const { amount, estimated } = resolveAmount(food, item.qty, metric);
-  return { ...item, food, amount, estimated, confidence: 'alta', alternatives: [item.food, ...item.alternatives].filter((f): f is Food => !!f && f.id !== food.id) };
+  return { ...item, food, amount, estimated, habitual: false };
+}
+
+/** Recalcula la cantidad al cambiar de alimento (2 huevos → 2 unidades del nuevo alimento) */
+export function swapFood<T extends QuickItem>(item: T, food: Food, habitual?: (id: string) => number | undefined): T {
+  const metric = item.qty.unit === 'g' || item.qty.unit === 'ml' ? { value: item.amount } : undefined;
+  const next = withAmount(item, food, metric, habitual);
+  return { ...next, confidence: 'alta', corrected: true, alternatives: [item.food, ...item.alternatives].filter((f): f is Food => !!f && f.id !== food.id) };
+}
+
+/** Pares (palabras → alimento) que conviene recordar tras guardar */
+export function learnedPairs(items: QuickItem[]): [string, string][] {
+  return items
+    .filter((i) => i.corrected && i.food && i.query && !i.menu && /^[a-z0-9ñ ]{1,60}$/.test(i.query))
+    .map((i) => [i.query, i.food!.id]);
 }

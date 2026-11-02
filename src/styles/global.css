@@ -14,14 +14,15 @@
   --text-2: #5f5f64; /* contraste 6,3:1 sobre blanco */
   --text-3: #8a8a8f;
   --sep: #e2e2e7;
-  --accent: #248a3d; /* verde iOS accesible: 4,6:1 con texto blanco */
+  --accent: #1f7f38; /* verde iOS accesible: 4,9:1 con texto blanco (WCAG AA) */
+  --accent-text: #1e7b35; /* verde para texto pequeño: 5,3:1 sobre blanco */
   --accent-soft: #e6f4ea;
   --on-accent: #ffffff;
   --danger: #d70015;
   --warn: #c24e00;
   --ok: #8a6100;
-  --good: #248a3d;
-  --gem: #10a39a;
+  --good: #1e7b35;
+  --gem: #0a7a73;
   --flame: #e8590c;
   --overlay: rgba(0, 0, 0, 0.32);
   --blur-bg: rgba(255, 255, 255, 0.82);
@@ -54,7 +55,7 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme='auto'] {
     --bg: #000000; --card: #1c1c1e; --card-2: #2c2c2e; --elevated: #1c1c1e; --text: #ffffff; --text-2: #b4b4ba;
-    --text-3: #7c7c82; --sep: #38383a; --accent: #30d158; --accent-soft: #11301b; --on-accent: #00230b;
+    --text-3: #7c7c82; --sep: #38383a; --accent: #30d158; --accent-text: #30d158; --accent-soft: #11301b; --on-accent: #00230b;
     --danger: #ff6961; --warn: #ffa95c; --ok: #ffd60a; --good: #30d158; --gem: #40e0d0; --flame: #ff9f0a;
     --overlay: rgba(0, 0, 0, 0.55); --blur-bg: rgba(18, 18, 20, 0.82);
     --fat-bg: #3a2e18; --protein-bg: #3d1f27; --carbs-bg: #13283b; --fiber-bg: #2f2820; --shadow-pop: 0 0.6rem 2rem rgba(0, 0, 0, 0.6);
@@ -62,7 +63,7 @@
 }
 :root[data-theme='dark'] {
   --bg: #000000; --card: #1c1c1e; --card-2: #2c2c2e; --elevated: #1c1c1e; --text: #ffffff; --text-2: #b4b4ba;
-  --text-3: #7c7c82; --sep: #38383a; --accent: #30d158; --accent-soft: #11301b; --on-accent: #00230b;
+  --text-3: #7c7c82; --sep: #38383a; --accent: #30d158; --accent-text: #30d158; --accent-soft: #11301b; --on-accent: #00230b;
   --danger: #ff6961; --warn: #ffa95c; --ok: #ffd60a; --good: #30d158; --gem: #40e0d0; --flame: #ff9f0a;
   --overlay: rgba(0, 0, 0, 0.55); --blur-bg: rgba(18, 18, 20, 0.82);
   --fat-bg: #3a2e18; --protein-bg: #3d1f27; --carbs-bg: #13283b; --fiber-bg: #2f2820; --shadow-pop: 0 0.6rem 2rem rgba(0, 0, 0, 0.6);
@@ -290,6 +291,7 @@ button.cell:active,
   background: var(--card-2);
 }
 .cell + .cell::before,
+.swipe-row + .swipe-row > .swipe-content > .cell::before,
 .cell-sep::before {
   content: '';
   position: absolute;
@@ -353,10 +355,11 @@ button.cell:active,
 .btn:active { transform: scale(0.98); opacity: 0.85; }
 .btn:disabled { opacity: 0.4; }
 .btn.block { width: 100%; }
-.btn.secondary { background: var(--accent-soft); color: var(--accent); }
+.btn.secondary { background: var(--accent-soft); color: var(--accent-text); }
 .btn.gray { background: var(--card); color: var(--text); }
 .btn.plain { background: transparent; color: var(--accent); min-height: 2.75rem; padding: 0.4rem 0.6rem; }
 .btn.danger { background: transparent; color: var(--danger); }
+.btn.danger-solid { background: var(--danger); color: #fff; }
 .btn.sm { min-height: 2.35rem; padding: 0.3rem 0.9rem; font-size: 0.88rem; border-radius: 999px; }
 
 .icon-btn {
@@ -585,6 +588,10 @@ select.input {
   position: relative;
 }
 .tab[aria-current='page'] { color: var(--accent); }
+/* Etiquetas de la barra: son texto muy pequeño, así que necesitan 4,5:1.
+   Inactivas en gris secundario; la activa, en un verde algo más oscuro. */
+.tab .tab-label { color: var(--text-2); }
+.tab[aria-current='page'] .tab-label { color: var(--accent-text, var(--accent)); }
 .tab svg { width: 1.6rem; height: 1.6rem; }
 .tab .badge {
   position: absolute;
@@ -1003,3 +1010,41 @@ select.input {
 .cell > .cell { min-width: 0; }
 .cell > .cell + .icon-btn,
 .cell > .cell ~ .add-btn { flex-shrink: 0; }
+
+/* ───────── Fila deslizable para borrar (Diario) ───────── */
+.swipe-row { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-action {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 1.1rem;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  /* Invisible en reposo (está detrás de la fila); aparece al deslizar */
+  opacity: var(--swipe, 0);
+}
+.swipe-content { position: relative; background: var(--card); }
+
+/* Cambio de día al deslizar: la fecha entra desde el lado correspondiente */
+.date-anim-prev { animation: date-in-left 0.22s ease; }
+.date-anim-next { animation: date-in-right 0.22s ease; }
+@keyframes date-in-left { from { opacity: 0; transform: translateX(-0.8rem); } }
+@keyframes date-in-right { from { opacity: 0; transform: translateX(0.8rem); } }
+
+/* Etiquetas de rareza: colores con 4,5:1 en claro y en oscuro */
+.rarity-comun { color: var(--text-2); }
+.rarity-raro { color: #0a63b0; }
+.rarity-epico { color: #7a36b3; }
+.rarity-legendario { color: #8f5600; }
+.rarity-logro { color: var(--accent-text); }
+:root[data-theme='dark'] .rarity-raro { color: #64b5ff; }
+:root[data-theme='dark'] .rarity-epico { color: #cfa3f5; }
+:root[data-theme='dark'] .rarity-legendario { color: #ffb84d; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .rarity-raro { color: #64b5ff; }
+  :root:not([data-theme='light']) .rarity-epico { color: #cfa3f5; }
+  :root:not([data-theme='light']) .rarity-legendario { color: #ffb84d; }
+}

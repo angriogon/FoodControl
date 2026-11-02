@@ -30,7 +30,7 @@ export function TabBar({ tab, onChange, badges }: { tab: Tab; onChange: (t: Tab)
               aria-label={badge ? `${label}, ${badge} novedad${badge === 1 ? '' : 'es'}` : label}
             >
               <Icon filled={active === id} />
-              <span aria-hidden="true">{label}</span>
+              <span className="tab-label" aria-hidden="true">{label}</span>
               {!!badge && <span className="badge" aria-hidden="true">{badge}</span>}
             </button>
           );
