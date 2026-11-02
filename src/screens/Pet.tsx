@@ -7,7 +7,7 @@ import { toast } from '../components/Toast';
 import { actions, useAppState } from '../store/store';
 import { useGameStatus } from '../lib/hooks';
 import {
-  PET_ITEMS, SLOT_LABELS, SLOT_ORDER, SPECIES, SPECIES_ORDER, achievementForItem, isItemOwned, type PetItem, type Slot
+  LEAF_LEVELS, PET_ITEMS, RARITY, SLOT_LABELS, SLOT_ORDER, SPECIES, SPECIES_ORDER, achievementForItem, isItemOwned, rarityOf, type PetItem, type Slot
 } from '../lib/pet';
 import { fmt } from '../lib/nutrition';
 
@@ -83,7 +83,7 @@ export function Pet() {
         <ProgressBar value={game.progress} max={1} color="var(--gem)" className="lg mt-s" label={`Progreso del nivel ${game.level}: ${Math.round(game.progress * 100)}%`} />
         <p className="small muted mt-s">
           {MOOD_TEXT[game.mood]}
-          {pet.species === 'brote' && game.level < 5 ? ' Cada nivel le crece una hoja nueva 🌱' : ''}
+          {pet.species === 'brote' && game.level < LEAF_LEVELS[LEAF_LEVELS.length - 1] ? ` Le saldrá una hoja nueva en el nivel ${LEAF_LEVELS.find((l) => l > game.level)} 🌱` : ''}
         </p>
         <button
           className="link small"
@@ -111,11 +111,16 @@ export function Pet() {
         <button className="btn plain small" onClick={() => { actions.resetOutfit(); toast('Accesorios quitados', '🧺'); }}>Quitar todo</button>
       </div>
       <div className="chips" role="group" aria-label="Zona a personalizar" style={{ marginBottom: '0.8rem' }}>
-        {SLOT_ORDER.map((s) => (
-          <button key={s} className={`chip${slot === s ? ' active' : ''}`} aria-pressed={slot === s} onClick={() => setSlot(s)}>
-            {SLOT_LABELS[s]}
-          </button>
-        ))}
+        {SLOT_ORDER.map((s) => {
+          const all = PET_ITEMS.filter((i) => i.slot === s && !i.id.endsWith(':none'));
+          const own = all.filter((i) => isItemOwned(i.id, achievements, pet.purchased)).length;
+          return (
+            <button key={s} className={`chip${slot === s ? ' active' : ''}`} aria-pressed={slot === s} onClick={() => setSlot(s)}
+              aria-label={`${SLOT_LABELS[s]}: tienes ${own} de ${all.length}`}>
+              {SLOT_LABELS[s]} <span style={{ opacity: 0.6 }} className="num">{own}/{all.length}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="item-grid">
         {items.map((item) => {
@@ -123,6 +128,7 @@ export function Pet() {
           const owned = isItemOwned(item.id, achievements, pet.purchased);
           const equipped = pet.equipped[item.slot] === value;
           const ach = achievementForItem(item.id);
+          const rarity = rarityOf(item);
           const status = equipped ? 'Puesto' : owned ? '' : item.price ? `${item.price} gemas` : ach ? `Logro: ${ach.title}` : '';
           return (
             <button
@@ -130,7 +136,7 @@ export function Pet() {
               className={`item${owned ? '' : ' locked'}`}
               aria-pressed={equipped}
               onClick={() => onItem(item)}
-              aria-label={`${item.name}. ${equipped ? 'Puesto' : owned ? 'Disponible' : item.price ? `Bloqueado, cuesta ${item.price} gemas` : ach ? `Bloqueado, se consigue con el logro ${ach.title}` : 'Bloqueado'}`}
+              aria-label={`${item.name}${rarityOf(item) ? `, ${RARITY[rarityOf(item)!].name.toLowerCase()}` : ''}. ${equipped ? 'Puesto' : owned ? 'Disponible' : item.price ? `Bloqueado, cuesta ${item.price} gemas` : ach ? `Bloqueado, se consigue con el logro ${ach.title}` : 'Bloqueado'}`}
             >
               <span className="item-preview" aria-hidden="true">
                 <Mascot
@@ -144,6 +150,9 @@ export function Pet() {
               </span>
               {!owned && <span className="lock" aria-hidden="true"><IconLock size={11} /></span>}
               <span aria-hidden="true">{item.name}</span>
+              {rarity && !owned && (
+                <span className="tiny bold" style={{ color: RARITY[rarity].color }} aria-hidden="true">{RARITY[rarity].name}</span>
+              )}
               {status && (
                 <span className="tiny muted ellipsis" style={{ maxWidth: '100%' }} aria-hidden="true">
                   {item.price && !owned ? <span className="row" style={{ gap: '0.2rem', justifyContent: 'center' }}><Gem size={12} />{item.price}</span> : status}
@@ -163,7 +172,7 @@ export function Pet() {
           ['🥦', 'Día con alimentación de calidad', '+20'],
           ['👟', 'Registrar actividad', '+10'],
           ['✏️', 'Escribir una nota del día', '+5'],
-          ['🏆', 'Cada logro desbloqueado', '+50']
+          ['🏆', 'Cada logro (según su dificultad)', '+100 a +4000']
         ].map(([e, t, g]) => (
           <Cell key={t} icon={<span className="emoji-tile" aria-hidden="true">{e}</span>} title={<span className="small">{t}</span>}
             right={<b className="num" style={{ color: 'var(--gem)' }}>{g}</b>} />

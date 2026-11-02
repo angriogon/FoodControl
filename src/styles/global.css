@@ -876,3 +876,10 @@ select.input {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.pal-float { animation: pal-float 2.6s ease-in-out infinite; }
+@keyframes pal-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -5px); }
+}
+@media (prefers-reduced-motion: reduce) { .pal-float { animation: none; } }

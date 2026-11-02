@@ -116,7 +116,7 @@ export const actions = {
     update((s) => ({ ...s, ui: { ...s.ui, ...ui } }));
   },
   resetOutfit() {
-    update((s) => ({ ...s, pet: { ...s.pet, equipped: { ...s.pet.equipped, hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none' } } }));
+    update((s) => ({ ...s, pet: { ...s.pet, equipped: { ...s.pet.equipped, hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none', pal: 'none' } } }));
   },
   renamePet(name: string) {
     update((s) => ({ ...s, pet: { ...s.pet, name } }));

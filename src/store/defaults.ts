@@ -32,7 +32,7 @@ export function defaultState(): AppState {
     pet: {
       species: 'brote',
       name: 'Brotín',
-      equipped: { color: 'natural', hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none', scene: 'prado' },
+      equipped: { color: 'natural', hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none', pal: 'none', scene: 'prado' },
       purchased: []
     },
     ui: { textSize: 'auto', theme: 'light', highContrast: false },

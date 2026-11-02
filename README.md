@@ -11,8 +11,8 @@ Diseño blanco y minimalista al estilo de las apps de Apple: tipografía del sis
 | **Inicio** | Saludo con la mascota, tareas del día (desayuno, comida, cena, agua, actividad, pesaje semanal), anillos de macros, peso y accesos rápidos. |
 | **Diario** | Resumen de kcal (ingeridas / restantes / quemadas), macros, 4 comidas con objetivo propio, actividades, agua (vasos) y notas. Navegación por días (también futuros para planificar). |
 | **Análisis** | Diario o por comida: análisis general, calidad de los alimentos, desglose de macros y de comidas, fuente principal de cada macro y sugerencias. |
-| **Logros** | 19 logros con progreso (rachas, agua, calidad, proteína, fibra, actividad, peso…). Cada uno desbloquea un artículo para la mascota y +50 gemas. |
-| **Mascota** | 6 especies a elegir, nivel, estado de ánimo según tu día y armario con 54 artículos en 7 zonas: cabeza, cara, cuello, ropa, mano, color y fondo. Cada artículo se previsualiza sobre tu mascota; unos son gratis, otros se compran con gemas y otros se ganan con logros. |
+| **Logros** | 62 logros en 18 series por niveles (racha, días, semanas constantes, variedad, agua, calidad, equilibrio, proteína, fibra, actividad, horas de ejercicio, peso…), pensados para meses y años: los primeros llegan en semanas y los últimos exigen hasta 1000 días. Dan de 100 a 4000 gemas y muchos desbloquean artículos exclusivos. |
+| **Mascota** | 6 especies, nivel (curva progresiva: ~nivel 18 tras un año) y armario con 133 artículos en 8 zonas: cabeza, cara, cuello, ropa, mano, compañero, color (incluidos degradados) y fondo. Rarezas Común / Raro / Épico / Legendario / Exclusivo de logro; cada artículo se previsualiza puesto. |
 | **Perfil** | Peso inicial/actual/objetivo, gráfica, IMC, resumen nutricional de 7 días, objetivos y copias de seguridad. |
 
 **Añadir alimentos**: base local de 115 alimentos habituales en España (funciona sin conexión), búsqueda online en [Open Food Facts](https://world.openfoodfacts.org) (productos de supermercado con Nutri-Score), código de barras (introduciendo los dígitos), alimentos propios, recientes, *añadido rápido* de kcal y “copiar la comida de ayer”.

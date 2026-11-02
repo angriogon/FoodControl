@@ -110,6 +110,8 @@ export interface Equipped {
   neck: string;
   body: string;
   hand: string;
+  /** Compañero que acompaña a la mascota */
+  pal: string;
   scene: string;
 }
 

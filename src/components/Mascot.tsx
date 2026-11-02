@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import type { Equipped, Species } from '../types';
-import { SCENES, SPECIES, bodyColor, type Mood } from '../lib/pet';
+import { LEAF_LEVELS, PET_COLORS, SCENES, SPECIES, bodyColor, type Mood } from '../lib/pet';
 
 // Mascotas originales en SVG. Todas comparten la misma silueta base (un
 // “mochi” redondeado), así los accesorios encajan en cualquier especie:
@@ -19,12 +19,13 @@ interface Props {
 
 const INK = '#2A3344';
 const BODY = 'M100 68C140 68 158 100 158 128C158 156 134 172 100 172C66 172 42 156 42 128C42 100 60 68 100 68Z';
-const COVERING_HATS = ['gorra', 'chef', 'lana', 'corona', 'paja', 'boina', 'fiesta'];
+const COVERING_HATS = ['gorra', 'chef', 'lana', 'corona', 'paja', 'boina', 'fiesta', 'vaquero', 'mago', 'casco', 'pirata', 'vikingo', 'copa', 'navidad', 'birrete'];
 
 export function Mascot({ species = 'brote', equipped, level = 1, mood = 'feliz', size = 200, scene = true, label }: Props) {
   const uid = useId().replace(/:/g, '');
   const sp = SPECIES[species];
-  const body = bodyColor(species, equipped.color);
+  const grad = PET_COLORS[equipped.color]?.gradient;
+  const body = grad ? `url(#body-${uid})` : bodyColor(species, equipped.color);
   const sc = SCENES[equipped.scene] ?? SCENES.prado;
   const covered = COVERING_HATS.includes(equipped.hat);
   const clip = `clip-${uid}`;
@@ -44,6 +45,11 @@ export function Mascot({ species = 'brote', equipped, level = 1, mood = 'feliz',
         <clipPath id={clip}>
           <path d={BODY} />
         </clipPath>
+        {grad && (
+          <linearGradient id={`body-${uid}`} x1="0" x2="1" y1="0" y2="1">
+            {grad.map((c, i) => <stop key={c} offset={i / (grad.length - 1)} stopColor={c} />)}
+          </linearGradient>
+        )}
         {scene && (
           <linearGradient id={`sky-${uid}`} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor={sc.sky[0]} />
@@ -65,6 +71,9 @@ export function Mascot({ species = 'brote', equipped, level = 1, mood = 'feliz',
       <g className="pet-bounce">
         {/* Capa trasera: orejas, cola, brote… */}
         <BackFeatures species={species} body={body} level={level} covered={covered} dark={dark} />
+        {equipped.neck === 'capa' && (
+          <path d="M60 118 38 178q62 14 124 0l-22-60Z" fill="#E5463D" stroke={INK} strokeWidth="3" strokeLinejoin="round" />
+        )}
 
         {/* Pies y brazos */}
         <ellipse cx="80" cy="170" rx="14" ry="7" fill={species === 'pollito' ? '#F39C38' : dark ?? body} stroke={INK} strokeWidth="3" />
@@ -100,6 +109,7 @@ export function Mascot({ species = 'brote', equipped, level = 1, mood = 'feliz',
         <Hand item={equipped.hand} />
         <Hat hat={equipped.hat} />
       </g>
+      <Pal pal={equipped.pal ?? 'none'} />
     </svg>
   );
 }
@@ -109,7 +119,7 @@ export function Mascot({ species = 'brote', equipped, level = 1, mood = 'feliz',
 function BackFeatures({ species, body, level, covered, dark }: { species: Species; body: string; level: number; covered: boolean; dark: string | null }) {
   switch (species) {
     case 'brote':
-      return covered ? null : <Sprout leaves={Math.min(5, Math.max(1, level))} />;
+      return covered ? null : <Sprout leaves={Math.max(1, LEAF_LEVELS.filter((l) => level >= l).length)} />;
     case 'gato':
       return (
         <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
@@ -271,6 +281,58 @@ function Face({ mood, face, species }: { mood: Mood; face: string; species: Spec
           <path d="M94 111q6 -4 12 0M70 109l-16 -4M130 109l16 -4" />
         </g>
       )}
+      {face === 'pecas' && (
+        <g fill="#B97A45" opacity=".6">
+          {[[62, 120], [68, 124], [64, 128], [136, 120], [132, 124], [138, 128]].map(([x, y]) => <circle key={x + '-' + y} cx={x} cy={y} r="1.6" />)}
+        </g>
+      )}
+      {face === 'tirita' && (
+        <g transform="rotate(-30 136 104)" stroke={INK} strokeWidth="1.5">
+          <rect x="124" y="100" width="24" height="9" rx="4" fill="#F2C9A0" />
+          <rect x="132" y="100" width="8" height="9" fill="#E8B285" />
+        </g>
+      )}
+      {face === 'bigote' && (
+        <path d="M100 121c-5-6-16-7-22 1 7 3 15 1 22-1 7 2 15 4 22 1-6-8-17-7-22-1Z" fill="#5A3A20" stroke={INK} strokeWidth="1.5" />
+      )}
+      {face === 'gafas-corazon' && (
+        <g stroke={INK} strokeWidth="2.5">
+          <path transform="translate(82 112) scale(1.6)" d="M0 7C-9 1-10-5-6-8-3-10 0-8 0-5 0-8 3-10 6-8 10-5 9 1 0 7Z" fill="#F0506E" fillOpacity=".9" strokeWidth="1.5" />
+          <path transform="translate(118 112) scale(1.6)" d="M0 7C-9 1-10-5-6-8-3-10 0-8 0-5 0-8 3-10 6-8 10-5 9 1 0 7Z" fill="#F0506E" fillOpacity=".9" strokeWidth="1.5" />
+          <path d="M94 106h12M68 106l-14-4M132 106l14-4" fill="none" />
+        </g>
+      )}
+      {face === 'antifaz' && (
+        <path
+          fillRule="evenodd"
+          d="M62 104q38-12 76 0 4 14-10 18-14 2-28-8-14 10-28 8-14-4-10-18Z M76 112a6 6 0 1 0 12 0a6 6 0 1 0-12 0Z M112 112a6 6 0 1 0 12 0a6 6 0 1 0-12 0Z"
+          fill="#2A3344"
+          stroke={INK}
+          strokeWidth="2"
+        />
+      )}
+      {face === 'gafas-pixel' && (
+        <g fill="#111">
+          <rect x="62" y="104" width="76" height="5" />
+          <rect x="66" y="109" width="26" height="9" />
+          <rect x="108" y="109" width="26" height="9" />
+          <rect x="70" y="110" width="4" height="4" fill="#fff" />
+          <rect x="112" y="110" width="4" height="4" fill="#fff" />
+        </g>
+      )}
+      {face === 'gafas-natacion' && (
+        <g stroke={INK} strokeWidth="2.5">
+          <path d="M44 110h112" stroke="#3E7CC9" strokeWidth="4" />
+          <ellipse cx="82" cy="112" rx="12" ry="9" fill="#7EC4E8" fillOpacity=".7" />
+          <ellipse cx="118" cy="112" rx="12" ry="9" fill="#7EC4E8" fillOpacity=".7" />
+        </g>
+      )}
+      {face === 'monoculo' && (
+        <g fill="none" stroke="#C9921A" strokeWidth="2.5">
+          <circle cx="118" cy="112" r="11" fill="#fff" fillOpacity=".2" />
+          <path d="M128 118q8 14 2 26" strokeWidth="1.5" />
+        </g>
+      )}
       {face === 'gafas-sol' && (
         <g stroke={INK} strokeWidth="3">
           <path d="M67 104h30v8a13 11 0 0 1-30 0Z" fill="#1E2632" />
@@ -301,6 +363,15 @@ function Heart({ x, y }: { x: number; y: number }) {
 
 function Clothing({ item, clip }: { item: string; clip: string }) {
   if (item === 'none') return null;
+  if (item === 'flotador') {
+    return (
+      <g stroke={INK} strokeWidth="2.5">
+        <path d="M34 150q66 40 132 0" fill="none" stroke={INK} strokeWidth="17" strokeLinecap="round" />
+        <path d="M34 150q66 40 132 0" fill="none" stroke="#FF6B5E" strokeWidth="12" strokeLinecap="round" />
+        <path d="M58 162l6 6M96 170v8M136 164l-6 6" stroke="#FFFFFF" strokeWidth="8" />
+      </g>
+    );
+  }
   if (item === 'tutu') {
     return (
       <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
@@ -340,6 +411,98 @@ function Clothing({ item, clip }: { item: string; clip: string }) {
             <path d="M74 128h52l4 50H70Z" fill="#FFFFFF" />
             <rect x="88" y="146" width="24" height="12" rx="3" fill="#EAEFF4" />
             <path d="M74 128 62 120M126 128l12-8" stroke="#E5564F" strokeWidth="3" />
+          </>
+        );
+      case 'rayas':
+        return (
+          <>
+            <rect x="30" y="122" width="140" height="64" fill="#FFFFFF" />
+            {[128, 140, 152, 164, 176].map((y) => <rect key={y} x="30" y={y} width="140" height="5" fill="#3E7CC9" />)}
+          </>
+        );
+      case 'peto':
+        return (
+          <>
+            <rect x="30" y="146" width="140" height="40" fill="#4A6FA5" />
+            <rect x="80" y="128" width="40" height="20" rx="3" fill="#4A6FA5" />
+            <path d="M82 130 62 104M118 130l20-26" stroke="#4A6FA5" strokeWidth="6" />
+            <circle cx="86" cy="134" r="2.5" fill="#F6C343" />
+            <circle cx="114" cy="134" r="2.5" fill="#F6C343" />
+            <rect x="92" y="134" width="16" height="10" rx="2" fill="#3D5D8C" />
+          </>
+        );
+      case 'chaleco':
+        return (
+          <>
+            <path d="M30 118h62l-8 70H30Z" fill="#8A5A2B" />
+            <path d="M170 118h-62l8 70h54Z" fill="#8A5A2B" />
+            <circle cx="90" cy="148" r="2.5" fill="#F6C343" />
+            <circle cx="88" cy="162" r="2.5" fill="#F6C343" />
+          </>
+        );
+      case 'traje':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#2F3E5C" />
+            <path d="M84 120 100 160 116 120Z" fill="#FFFFFF" />
+            <path d="M84 120l10 18-8 4M116 120l-10 18 8 4" fill="#253250" stroke="#1C2740" strokeWidth="1.5" />
+            <path d="M97 132h6l2 20-5 5-5-5Z" fill="#E5463D" />
+          </>
+        );
+      case 'kimono':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#FFFFFF" />
+            <path d="M80 118l22 34M120 118l-22 34" stroke="#D5DCE5" strokeWidth="4" />
+            <rect x="30" y="152" width="140" height="8" fill="#2A3344" />
+          </>
+        );
+      case 'superheroe':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#3E7CC9" />
+            <rect x="30" y="160" width="140" height="6" fill="#E5463D" />
+            <circle cx="100" cy="142" r="12" fill="#F6C343" />
+            <path d="M100 133l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="#E5463D" />
+          </>
+        );
+      case 'jersey':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#C23F3A" />
+            <path d="M30 146l8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6 8 6 8-6" stroke="#FFFFFF" strokeWidth="3" fill="none" />
+            <path d="M100 150l8 14H92Z" fill="#34C759" />
+            <circle cx="100" cy="148" r="2.5" fill="#F6C343" />
+          </>
+        );
+      case 'hawaiana':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#2BB39B" />
+            {[[72, 140], [118, 134], [96, 160], [134, 158], [62, 164]].map(([x, y]) => (
+              <g key={x}>
+                <circle cx={x} cy={y} r="5" fill="#F49AC1" />
+                <circle cx={x} cy={y} r="2" fill="#F6C343" />
+              </g>
+            ))}
+            <path d="M86 118l14 14 14-14" fill="none" stroke="#1E8C79" strokeWidth="3" />
+          </>
+        );
+      case 'impermeable':
+        return (
+          <>
+            <rect x="30" y="118" width="140" height="70" fill="#FFCC00" />
+            <path d="M100 120v70" stroke="#D9A800" strokeWidth="2" />
+            {[132, 146, 160].map((y) => <circle key={y} cx="106" cy={y} r="2.5" fill="#2A3344" />)}
+            <path d="M70 156h16M114 156h16" stroke="#D9A800" strokeWidth="3" />
+          </>
+        );
+      case 'cinturon':
+        return (
+          <>
+            <rect x="30" y="146" width="140" height="12" fill="#2A3344" />
+            <ellipse cx="100" cy="152" rx="18" ry="11" fill="#F6C343" stroke="#C9921A" strokeWidth="2" />
+            <path d="M100 145l2 4 4 .5-3 3 .8 4-3.8-2-3.8 2 .8-4-3-3 4-.5Z" fill="#E5463D" />
           </>
         );
       default:
@@ -407,6 +570,56 @@ function Neck({ neck }: { neck: string }) {
           ))}
         </g>
       );
+    case 'perlas':
+      return (
+        <g fill="#FFFDF6" stroke={INK} strokeWidth="1.2">
+          {Array.from({ length: 11 }, (_, i) => {
+            const t = i / 10;
+            return <circle key={i} cx={66 + t * 68} cy={136 + Math.sin(t * Math.PI) * 12} r="3.6" />;
+          })}
+        </g>
+      );
+    case 'cascabel':
+      return (
+        <g stroke={INK} strokeWidth="2.5">
+          <path d="M60 134q40 18 80 0" fill="none" stroke="#E5463D" strokeWidth="6" strokeLinecap="round" />
+          <circle cx="100" cy="150" r="8" fill="#F6C343" />
+          <path d="M94 151h12M100 151v6" strokeWidth="2" />
+        </g>
+      );
+    case 'capa':
+      return (
+        <g stroke={INK} strokeWidth="2.5">
+          <path d="M66 132q34 10 68 0" fill="none" stroke="#C23F3A" strokeWidth="6" strokeLinecap="round" />
+          <circle cx="100" cy="138" r="5" fill="#F6C343" />
+        </g>
+      );
+    case 'silbato':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <path d="M80 130l22 24M120 130l-14 24" fill="none" stroke="#E5463D" strokeWidth="2.5" />
+          <rect x="98" y="152" width="16" height="9" rx="4" fill="#C9D3DD" />
+          <circle cx="102" cy="158" r="5" fill="#C9D3DD" />
+        </g>
+      );
+    case 'toalla':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M66 126q34 16 68 0" fill="none" stroke="#FFFFFF" strokeWidth="10" strokeLinecap="round" />
+          <path d="M68 128h14v34H68Z" fill="#FFFFFF" />
+          <path d="M118 128h14v34h-14Z" fill="#FFFFFF" />
+          <path d="M68 154h14M118 154h14" stroke="#3E7CC9" strokeWidth="3" />
+        </g>
+      );
+    case 'lazo-grande':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M100 144 74 128q-6 16 0 32Z" fill="#F49AC1" />
+          <path d="M100 144l26-16q6 16 0 32Z" fill="#F49AC1" />
+          <path d="M96 146 88 168M104 146l8 22" stroke="#E07AAE" strokeWidth="5" />
+          <circle cx="100" cy="144" r="6" fill="#E07AAE" />
+        </g>
+      );
     default:
       return null;
   }
@@ -465,6 +678,108 @@ function Hand({ item }: { item: string }) {
           <rect x="156" y="143" width="30" height="5" rx="2" fill="#9AA8B8" />
           <rect x="152" y="134" width="8" height="23" rx="2" fill="#2A3344" />
           <rect x="182" y="134" width="8" height="23" rx="2" fill="#2A3344" />
+        </g>
+      );
+    case 'platano':
+      return <path d="M160 132q20 6 18 26-6-14-20-18Z" fill="#FFD54F" stroke={INK} strokeWidth="2.5" strokeLinejoin="round" />;
+    case 'zanahoria':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M160 136l12-4 4 6-12 26Z" fill="#F39C38" />
+          <path d="M172 132l4-10M174 134l10-6M170 132l-2-10" stroke="#4E8B3A" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
+    case 'brocoli':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <path d="M168 156l2-14" stroke="#7CC36A" strokeWidth="6" />
+          <circle cx="164" cy="136" r="7" fill="#4E9A3C" />
+          <circle cx="176" cy="134" r="7" fill="#4E9A3C" />
+          <circle cx="170" cy="126" r="7" fill="#5BAE47" />
+        </g>
+      );
+    case 'helado':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M160 132h18l-9 24Z" fill="#E9C27D" />
+          <circle cx="164" cy="128" r="7" fill="#F7B6D2" />
+          <circle cx="174" cy="127" r="7" fill="#FFF3C4" />
+          <circle cx="169" cy="119" r="6" fill="#A47551" />
+        </g>
+      );
+    case 'batido':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M160 128h20l-3 28h-14Z" fill="#F7B6D2" />
+          <path d="M160 128h20" stroke="#fff" strokeWidth="4" />
+          <path d="M174 128l6-16" stroke="#3E7CC9" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
+    case 'banderin':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M168 150V96" strokeWidth="3" />
+          <path d="M168 98l26 10-26 10Z" fill="#E5463D" />
+        </g>
+      );
+    case 'ramo':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <path d="M166 150l4-20M170 150v-22M174 150l-2-20" stroke="#4E8B3A" strokeWidth="2.5" />
+          <circle cx="164" cy="128" r="6" fill="#F49AC1" />
+          <circle cx="176" cy="126" r="6" fill="#F6C343" />
+          <circle cx="170" cy="118" r="6" fill="#B49BE8" />
+          <path d="M162 140h16l-4 12h-8Z" fill="#FFFFFF" />
+        </g>
+      );
+    case 'paraguas':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M170 152V98" strokeWidth="3" />
+          <path d="M170 152q0 6-6 4" fill="none" />
+          <path d="M142 100q28-32 56 0q-7-6-14 0-7-6-14 0-7-6-14 0-7-6-14 0Z" fill="#3E7CC9" />
+        </g>
+      );
+    case 'pelota':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <circle cx="172" cy="148" r="11" fill="#FFFFFF" />
+          <path d="M172 143l5 4-2 6h-6l-2-6Z" fill="#2A3344" />
+          <path d="M172 143v-6M177 147l6-2M175 153l3 5M169 153l-3 5M167 147l-6-2" strokeWidth="1.5" />
+        </g>
+      );
+    case 'varita':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M166 150l16-34" strokeWidth="4" strokeLinecap="round" />
+          <path d="M184 104l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z" fill="#F6C343" strokeWidth="2" />
+          <circle cx="194" cy="100" r="1.8" fill="#F6C343" stroke="none" />
+          <circle cx="176" cy="98" r="1.5" fill="#F6C343" stroke="none" />
+        </g>
+      );
+    case 'libro':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round" transform="rotate(-12 170 142)">
+          <rect x="158" y="128" width="24" height="30" rx="2" fill="#E5463D" />
+          <path d="M162 128v30" stroke="#C23F3A" strokeWidth="3" />
+          <path d="M166 138h12M166 144h10" stroke="#fff" strokeWidth="2" />
+        </g>
+      );
+    case 'cronometro':
+      return (
+        <g stroke={INK} strokeWidth="2.5">
+          <rect x="168" y="124" width="6" height="5" rx="1" fill="#9AA8B8" />
+          <circle cx="171" cy="141" r="12" fill="#FFFFFF" />
+          <path d="M171 141v-7M171 141l5 3" strokeLinecap="round" />
+        </g>
+      );
+    case 'trofeo':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M160 120h22v8a11 11 0 0 1-22 0Z" fill="#F6C343" />
+          <path d="M160 124h-5a5 5 0 0 0 7 8M182 124h5a5 5 0 0 1-7 8" fill="none" />
+          <path d="M168 139h6v8h-6Z" fill="#F6C343" />
+          <rect x="162" y="147" width="18" height="6" rx="1" fill="#8A5A2B" />
         </g>
       );
     default:
@@ -561,6 +876,118 @@ function Hat({ hat }: { hat: string }) {
           <rect x="146" y="100" width="16" height="28" rx="7" fill="#E5564F" />
         </g>
       );
+    case 'cerezas':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <path d="M120 64q6 4 6 16M120 64q10 2 14 14" fill="none" stroke="#4E8B3A" strokeWidth="2.5" />
+          <circle cx="125" cy="84" r="6" fill="#E5463D" />
+          <circle cx="136" cy="80" r="6" fill="#E5463D" />
+          <path d="M118 62q6-6 12 0q-6 4-12 0Z" fill="#7CC36A" />
+        </g>
+      );
+    case 'casco':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M54 98C54 56 146 56 146 98Z" fill="#34C759" />
+          <path d="M80 66v14M100 62v16M120 66v14" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
+          <path d="M54 98h92" />
+        </g>
+      );
+    case 'navidad':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M62 92C64 58 110 38 148 62l2 16C128 66 98 70 62 92Z" fill="#E5463D" />
+          <path d="M58 92c30-14 64-18 94-14" stroke="#fff" strokeWidth="9" strokeLinecap="round" />
+          <circle cx="152" cy="80" r="8" fill="#fff" />
+        </g>
+      );
+    case 'vaquero':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <ellipse cx="100" cy="86" rx="62" ry="10" fill="#A0693B" />
+          <path d="M70 86C68 54 82 52 100 62 118 52 132 54 130 86Z" fill="#B97A45" />
+          <path d="M71 78h58" stroke="#5A3A20" strokeWidth="5" />
+        </g>
+      );
+    case 'pirata':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M44 90Q100 34 156 90Q100 72 44 90Z" fill="#2A3344" />
+          <circle cx="100" cy="70" r="6" fill="#fff" />
+          <path d="M94 80l12 -6M94 74l12 6" stroke="#fff" strokeWidth="2" />
+        </g>
+      );
+    case 'mago':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M66 84 108 14 134 84Z" fill="#6C5BD4" />
+          <ellipse cx="100" cy="84" rx="44" ry="8" fill="#5847B8" />
+          <path d="M102 44l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1Z" fill="#F6C343" strokeWidth="1.5" />
+          <circle cx="116" cy="66" r="2.5" fill="#F6C343" stroke="none" />
+          <circle cx="90" cy="70" r="2" fill="#F6C343" stroke="none" />
+        </g>
+      );
+    case 'vikingo':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M60 70c-14-4-20-20-14-32 4 12 14 18 22 20Z" fill="#FFF3D6" />
+          <path d="M140 70c14-4 20-20 14-32-4 12-14 18-22 20Z" fill="#FFF3D6" />
+          <path d="M60 94C60 60 140 60 140 94Z" fill="#B9C4CF" />
+          <path d="M58 90h84v8H58Z" fill="#8A6B3A" />
+          <path d="M100 64v26" stroke="#8A6B3A" strokeWidth="5" />
+        </g>
+      );
+    case 'copa':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <rect x="76" y="32" width="48" height="46" rx="3" fill="#2A3344" />
+          <path d="M77 64h46v8H77Z" fill="#E5463D" strokeWidth="2" />
+          <ellipse cx="100" cy="80" rx="38" ry="6" fill="#2A3344" />
+        </g>
+      );
+    case 'halo':
+      return (
+        <g>
+          <ellipse cx="100" cy="44" rx="28" ry="7" fill="none" stroke="#F6C343" strokeWidth="6" />
+          <ellipse cx="100" cy="44" rx="28" ry="7" fill="none" stroke="#FFF3B0" strokeWidth="2" />
+        </g>
+      );
+    case 'girasol':
+      return (
+        <g transform="translate(130 76)" stroke={INK} strokeWidth="2">
+          {Array.from({ length: 10 }, (_, i) => <ellipse key={i} cx="0" cy="-11" rx="5" ry="9" fill="#FFC72C" transform={`rotate(${i * 36})`} />)}
+          <circle r="8" fill="#8A5A2B" />
+        </g>
+      );
+    case 'tiara':
+      return (
+        <g stroke={INK} strokeWidth="2.5" strokeLinejoin="round">
+          <path d="M74 78 80 62l10 8 10-14 10 14 10-8 6 16Z" fill="#E6E9F0" />
+          <circle cx="100" cy="66" r="4" fill="#F49AC1" strokeWidth="2" />
+          <circle cx="84" cy="72" r="2.5" fill="#7EC4E8" strokeWidth="1.5" />
+          <circle cx="116" cy="72" r="2.5" fill="#7EC4E8" strokeWidth="1.5" />
+        </g>
+      );
+    case 'birrete':
+      return (
+        <g stroke={INK} strokeWidth="3" strokeLinejoin="round">
+          <path d="M76 70v14h48V70" fill="#2A3344" />
+          <path d="M56 64 100 48l44 16-44 16Z" fill="#2A3344" />
+          <path d="M100 64l38 6v18" fill="none" stroke="#F6C343" strokeWidth="2.5" />
+          <circle cx="138" cy="90" r="3.5" fill="#F6C343" strokeWidth="1.5" />
+        </g>
+      );
+    case 'laurel':
+      return (
+        <g fill="#7CC36A" stroke="#4E8B3A" strokeWidth="1.8">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <g key={i}>
+              <ellipse cx={64 + i * 7} cy={96 - i * 6} rx="8" ry="4" transform={`rotate(${-40 + i * 8} ${64 + i * 7} ${96 - i * 6})`} />
+              <ellipse cx={136 - i * 7} cy={96 - i * 6} rx="8" ry="4" transform={`rotate(${40 - i * 8} ${136 - i * 7} ${96 - i * 6})`} />
+            </g>
+          ))}
+        </g>
+      );
     default:
       return null;
   }
@@ -644,6 +1071,114 @@ function SceneDecor({ scene }: { scene: string }) {
           ))}
         </g>
       );
+    case 'otono':
+      return (
+        <g>
+          <circle cx="160" cy="40" r="14" fill="#F4B34E" />
+          {[[28, 120, '#E07A2E'], [176, 112, '#C9561C']].map(([x, y, c]) => (
+            <g key={String(x)}>
+              <rect x={Number(x) - 3} y={Number(y)} width="6" height="50" fill="#7A4E2D" />
+              <circle cx={Number(x)} cy={Number(y)} r="22" fill={String(c)} />
+            </g>
+          ))}
+          {[[60, 60], [90, 40], [130, 76], [50, 100]].map(([x, y]) => (
+            <ellipse key={x} cx={x} cy={y} rx="4" ry="2.5" fill="#E07A2E" transform={`rotate(30 ${x} ${y})`} />
+          ))}
+        </g>
+      );
+    case 'desierto':
+      return (
+        <g>
+          <circle cx="150" cy="40" r="18" fill="#FFB84D" />
+          <path d="M-10 168q60-40 120-10t110 0v40H-10Z" fill="#F0CF8E" />
+          <g fill="#5BAE47" stroke="#3E7A2F" strokeWidth="2">
+            <rect x="24" y="120" width="10" height="48" rx="5" />
+            <path d="M24 140h-8v-14a4 4 0 0 1 8 0Z" />
+            <path d="M34 134h8v-12a4 4 0 0 0-8 0Z" />
+          </g>
+        </g>
+      );
+    case 'bosque':
+      return (
+        <g>
+          {[[16, 110], [44, 96], [160, 100], [186, 116]].map(([x, y], i) => (
+            <g key={i}>
+              <rect x={x - 3} y={y + 40} width="6" height="24" fill="#6B4A2E" />
+              <path d={`M${x} ${y}l20 44H${x - 20}Z`} fill={i % 2 ? '#3E7A4F' : '#4E9A5F'} />
+            </g>
+          ))}
+          <circle cx="100" cy="34" r="12" fill="#FFE08A" opacity=".8" />
+        </g>
+      );
+    case 'cerezo':
+      return (
+        <g>
+          <path d="M30 170V110q0-16 14-26M30 120q-10-10-14-22" stroke="#7A4E2D" strokeWidth="6" fill="none" strokeLinecap="round" />
+          {[[44, 80], [24, 92], [14, 76], [36, 64], [56, 96], [8, 104]].map(([x, y]) => <circle key={x + '-' + y} cx={x} cy={y} r="14" fill="#F7B6D2" />)}
+          {[[120, 50], [150, 80], [90, 30], [170, 40], [130, 100]].map(([x, y]) => <circle key={x} cx={x} cy={y} r="3" fill="#F49AC1" />)}
+        </g>
+      );
+    case 'huerto':
+      return (
+        <g>
+          <circle cx="40" cy="36" r="14" fill="#FFD25E" />
+          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+            <g key={i}>
+              <path d={`M${14 + i * 28} 168l-6-14M${14 + i * 28} 168l6-14M${14 + i * 28} 168v-16`} stroke="#4E9A3C" strokeWidth="3" strokeLinecap="round" />
+              {i % 2 === 0 && <circle cx={14 + i * 28} cy="150" r="4" fill="#E5463D" />}
+            </g>
+          ))}
+          <rect x="150" y="96" width="34" height="40" fill="#C59A6C" stroke="#8A5A2B" strokeWidth="2" />
+          <path d="M146 98l21-16 21 16Z" fill="#E5463D" />
+        </g>
+      );
+    case 'mercado':
+      return (
+        <g>
+          <rect x="10" y="60" width="180" height="70" fill="#FFF3DC" />
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <path key={i} d={`M${10 + i * 20} 40h20v22q-10 8-20 0Z`} fill={i % 2 ? '#FFFFFF' : '#E5463D'} />
+          ))}
+          <rect x="10" y="118" width="180" height="14" fill="#C59A6C" />
+          {[[30, '#E5463D'], [46, '#F39C38'], [62, '#FFD54F'], [140, '#7CC36A'], [156, '#B49BE8'], [172, '#E5463D']].map(([x, c]) => (
+            <circle key={String(x)} cx={Number(x)} cy="114" r="7" fill={String(c)} />
+          ))}
+        </g>
+      );
+    case 'estadio':
+      return (
+        <g>
+          <rect x="0" y="60" width="200" height="60" fill="#B9C6D6" />
+          {Array.from({ length: 30 }, (_, i) => (
+            <circle key={i} cx={6 + (i % 15) * 13.5} cy={72 + Math.floor(i / 15) * 18} r="4" fill={['#E5463D', '#3E7CC9', '#F6C343', '#FFFFFF'][i % 4]} />
+          ))}
+          <path d="M20 40v40M180 40v40" stroke="#9AA8B8" strokeWidth="3" />
+          <rect x="12" y="32" width="16" height="10" fill="#FFF8D6" />
+          <rect x="172" y="32" width="16" height="10" fill="#FFF8D6" />
+          <path d="M0 170h200" stroke="#FFFFFF" strokeWidth="2" opacity=".8" />
+        </g>
+      );
+    case 'submarino':
+      return (
+        <g>
+          {[[30, 40, 6], [50, 70, 4], [160, 50, 5], [176, 90, 3], [140, 20, 4]].map(([x, y, r]) => (
+            <circle key={x} cx={x} cy={y} r={r} fill="none" stroke="#DFF4FF" strokeWidth="2" />
+          ))}
+          <path d="M20 170q-8-20 4-36t-2-34M180 170q8-20-4-36" stroke="#2BB39B" strokeWidth="6" fill="none" strokeLinecap="round" />
+          <path d="M150 60q10-8 20 0-10 8-20 0Zm20 0 6-5v10Z" fill="#F39C38" />
+        </g>
+      );
+    case 'espacio':
+      return (
+        <g>
+          {[[20, 20], [60, 50], [110, 16], [150, 70], [30, 100], [180, 30], [90, 80], [170, 110]].map(([x, y], i) => (
+            <circle key={i} cx={x} cy={y} r={i % 3 ? 1.5 : 2.5} fill="#fff" />
+          ))}
+          <circle cx="156" cy="44" r="18" fill="#F7A98B" />
+          <ellipse cx="156" cy="44" rx="30" ry="6" fill="none" stroke="#FFD54F" strokeWidth="3" transform="rotate(-20 156 44)" />
+          {[[60, 186], [140, 190], [100, 196]].map(([x, y]) => <ellipse key={x} cx={x} cy={y} rx="8" ry="3" fill="#7E8496" />)}
+        </g>
+      );
     default:
       return (
         <g>
@@ -652,5 +1187,76 @@ function SceneDecor({ scene }: { scene: string }) {
           <path d="M20 168l4 -10 4 10M170 166l4 -12 4 12M150 172l3 -8 3 8" stroke="#6E9E3A" strokeWidth="3" fill="none" strokeLinecap="round" />
         </g>
       );
+  }
+}
+
+// ───────────────────────── Compañeros ─────────────────────────
+
+function Pal({ pal }: { pal: string }) {
+  switch (pal) {
+    case 'mariposa':
+      return (
+        <g className="pal-float" stroke={INK} strokeWidth="2">
+          <ellipse cx="26" cy="54" rx="9" ry="12" fill="#F49AC1" transform="rotate(-20 26 54)" />
+          <ellipse cx="42" cy="54" rx="9" ry="12" fill="#B49BE8" transform="rotate(20 42 54)" />
+          <path d="M34 46v20" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
+    case 'abeja':
+      return (
+        <g className="pal-float" stroke={INK} strokeWidth="2">
+          <ellipse cx="34" cy="52" rx="8" ry="6" fill="#FFFFFF" fillOpacity=".8" transform="rotate(-30 34 52)" />
+          <ellipse cx="32" cy="64" rx="12" ry="9" fill="#FFD54F" />
+          <path d="M28 56v16M36 56v16" stroke={INK} strokeWidth="3" />
+          <circle cx="42" cy="62" r="1.5" fill={INK} />
+        </g>
+      );
+    case 'pajarito':
+      return (
+        <g className="pal-float" stroke={INK} strokeWidth="2" strokeLinejoin="round">
+          <ellipse cx="30" cy="60" rx="14" ry="11" fill="#7EC4E8" />
+          <path d="M22 58q6 8 14 2" fill="#5BA8D6" />
+          <path d="M44 58l7 3-7 3Z" fill="#F39C38" />
+          <circle cx="37" cy="56" r="1.8" fill={INK} />
+        </g>
+      );
+    case 'caracol':
+      return (
+        <g stroke={INK} strokeWidth="2" strokeLinejoin="round">
+          <path d="M8 176h34q4-8-4-8H8Z" fill="#F2D27E" />
+          <circle cx="22" cy="164" r="10" fill="#C59A6C" />
+          <path d="M22 164a4 4 0 1 1 4-4" fill="none" />
+          <path d="M38 168l2-10M42 168l4-9" />
+        </g>
+      );
+    case 'perrito':
+      return (
+        <g stroke={INK} strokeWidth="2" strokeLinejoin="round">
+          <ellipse cx="24" cy="166" rx="16" ry="10" fill="#E9C27D" />
+          <circle cx="30" cy="150" r="10" fill="#E9C27D" />
+          <ellipse cx="22" cy="146" rx="4" ry="8" fill="#A47551" transform="rotate(20 22 146)" />
+          <circle cx="33" cy="148" r="1.6" fill={INK} />
+          <circle cx="39" cy="152" r="2" fill={INK} />
+          <path d="M8 162q-6-6-2-12" fill="none" />
+        </g>
+      );
+    case 'pez':
+      return (
+        <g stroke={INK} strokeWidth="2">
+          <path d="M8 152a20 20 0 1 0 36 0Z" fill="#BFE6F7" fillOpacity=".8" />
+          <path d="M18 162q6-6 12 0-6 6-12 0Zm12 0 5-4v8Z" fill="#F39C38" strokeWidth="1.5" />
+          <path d="M8 152h36" strokeWidth="2.5" />
+        </g>
+      );
+    case 'estrella':
+      return (
+        <g className="pal-float" stroke={INK} strokeWidth="2" strokeLinejoin="round">
+          <path d="M32 40l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2Z" fill="#FFD54F" />
+          <circle cx="29" cy="54" r="1.5" fill={INK} />
+          <circle cx="35" cy="54" r="1.5" fill={INK} />
+        </g>
+      );
+    default:
+      return null;
   }
 }

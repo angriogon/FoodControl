@@ -65,7 +65,7 @@ export default function App() {
     const fresh = ACHIEVEMENTS.filter((a) => !state.achievements[a.id] && a.check(stats));
     if (fresh.length) {
       actions.unlockAchievements(fresh.map((a) => a.id));
-      fresh.forEach((a, i) => setTimeout(() => toast(`¡Logro: ${a.title}! +50 💎`, a.emoji, 3500), 400 + i * 900));
+      fresh.forEach((a, i) => setTimeout(() => toast(`¡Logro: ${a.title}! +${a.gems} 💎`, a.emoji, 3500), 400 + i * 900));
     }
   }, [ready, state, targets]);
 
