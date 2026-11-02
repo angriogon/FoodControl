@@ -59,7 +59,7 @@ npm run dev        # http://localhost:5173/FoodControl/ (también accesible desd
 npm run build      # genera dist/
 npm run preview    # sirve la build
 npm test           # tests de la lógica (objetivo adaptativo, tendencia de peso)
-npm run icons      # regenera los PNG de iconos desde public/favicon.svg (requiere Playwright)
+npm run icons      # regenera los PNG de iconos desde icons-src/*.svg (requiere Playwright)
 ```
 
 Stack: React 19 + TypeScript + Vite + vite-plugin-pwa (service worker, offline) + idb-keyval. Sin librerías de UI: iconos, gráficas y mascota son SVG propios.
