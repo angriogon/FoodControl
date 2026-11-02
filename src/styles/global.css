@@ -528,6 +528,21 @@ select.input {
 .switch input:checked + span::after { transform: translateX(20px); }
 .switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
 
+/* ───────────────────────── Barra de estado ─────────────────────────
+   Franja sólida detrás de la hora/Dynamic Island. iOS 26 toma el color de
+   los elementos fijos de arriba; sin ella desenfoca el contenido de debajo
+   y aparece una mancha gris. */
+.statusbar-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--safe-top);
+  background: var(--bg);
+  z-index: 45;
+  pointer-events: none;
+}
+
 /* ───────────────────────── Barra de pestañas ───────────────────────── */
 .tabbar {
   position: fixed;

@@ -89,6 +89,7 @@ export default function App() {
   if (!state.profile.onboarded) {
     return (
       <main className="app">
+        <div className="statusbar-bg" aria-hidden="true" />
         <Onboarding />
         <Toasts />
       </main>
@@ -97,6 +98,7 @@ export default function App() {
 
   return (
     <>
+      <div className="statusbar-bg" aria-hidden="true" />
       <main className="app">
       {tab === 'inicio' && <Home go={go} openData={() => { go('perfil'); setDataOpen(true); }} />}
       {tab === 'diario' && <Diary />}
