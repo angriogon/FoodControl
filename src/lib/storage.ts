@@ -1,4 +1,4 @@
-import { get, set } from 'idb-keyval';
+import { createStore, get, set } from 'idb-keyval';
 import type { AppState } from '../types';
 import { defaultState, migrate } from '../store/defaults';
 
@@ -10,10 +10,25 @@ import { defaultState, migrate } from '../store/defaults';
 const KEY = 'foodcontrol:state:v1';
 const LS_KEY = 'foodcontrol:mirror:v1';
 
+// Base de datos PROPIA. Todas las webs de angriogon.github.io comparten
+// origen (y por tanto almacenamiento); con la base genérica de idb-keyval,
+// otra app del mismo dominio podría sobrescribir o vaciar estos datos.
+// Se crea de forma perezosa para no tocar IndexedDB si no está disponible.
+let store: ReturnType<typeof createStore> | undefined;
+const db = () => (store ??= createStore('foodcontrol', 'state'));
+
 export async function loadState(): Promise<AppState> {
   try {
-    const data = await get<AppState>(KEY);
+    const data = await get<unknown>(KEY, db());
     if (data) return migrate(data);
+    // Migración desde la base genérica usada hasta noviembre de 2026.
+    // No se borra la copia antigua: así nunca se pierde nada si algo falla.
+    const legacy = await get<unknown>(KEY);
+    if (legacy) {
+      const state = migrate(legacy);
+      await set(KEY, state, db());
+      return state;
+    }
   } catch (err) {
     console.warn('IndexedDB no disponible, usando localStorage', err);
   }
@@ -28,7 +43,7 @@ export async function loadState(): Promise<AppState> {
 
 export async function saveState(state: AppState): Promise<void> {
   try {
-    await set(KEY, state);
+    await set(KEY, state, db());
   } catch (err) {
     console.error('Error guardando en IndexedDB', err);
   }
@@ -113,7 +128,10 @@ export async function exportBackup(state: AppState): Promise<'shared' | 'downloa
   return 'downloaded';
 }
 
+const MAX_BACKUP_BYTES = 20 * 1024 * 1024; // una copia real ocupa KB; 20 MB es un límite holgado
+
 export async function parseBackup(file: File): Promise<AppState> {
+  if (file.size > MAX_BACKUP_BYTES) throw new Error('El archivo es demasiado grande para ser una copia de FoodControl.');
   const text = await file.text();
   let parsed: unknown;
   try {
@@ -121,10 +139,11 @@ export async function parseBackup(file: File): Promise<AppState> {
   } catch {
     throw new Error('El archivo no es un JSON válido.');
   }
-  const obj = parsed as { app?: string; state?: AppState } & Partial<AppState>;
-  const candidate = obj.state ?? (obj.version === 1 ? (obj as AppState) : null);
-  if (!candidate || typeof candidate !== 'object' || !candidate.profile || !candidate.days) {
+  const obj = (typeof parsed === 'object' && parsed !== null ? parsed : {}) as { state?: unknown; version?: unknown; profile?: unknown; days?: unknown };
+  const candidate = (obj.state ?? (obj.version === 1 ? obj : null)) as { profile?: unknown; days?: unknown } | null;
+  if (!candidate || typeof candidate !== 'object' || typeof candidate.profile !== 'object' || typeof candidate.days !== 'object') {
     throw new Error('El archivo no parece una copia de FoodControl.');
   }
+  // migrate() valida y sanea cada campo: una copia dañada nunca rompe la app
   return migrate(candidate);
 }

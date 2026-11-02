@@ -154,6 +154,11 @@ function subscribe(l: () => void) {
   return () => listeners.delete(l);
 }
 
+/** Lectura directa del estado (fuera de React, p. ej. en la pantalla de error) */
+export function getState(): AppState {
+  return state;
+}
+
 export function useAppState(): AppState {
   return useSyncExternalStore(subscribe, () => state);
 }

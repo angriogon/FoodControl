@@ -1,14 +1,39 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // En GitHub Pages la app se sirve en /<repo>/. Se puede sobrescribir con BASE_PATH.
 const base = process.env.BASE_PATH ?? '/FoodControl/';
 
+// Política de seguridad de contenido (solo en la build publicada: el servidor
+// de desarrollo inyecta scripts en línea para la recarga en caliente).
+// GitHub Pages no permite cabeceras HTTP propias, así que va como <meta>.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data: blob:",
+  "connect-src 'self' https://world.openfoodfacts.org",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "font-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'"
+].join('; ');
+
+const cspPlugin: Plugin = {
+  name: 'foodcontrol-csp',
+  apply: 'build',
+  transformIndexHtml: (html) =>
+    html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`)
+};
+
 export default defineConfig({
   base,
   plugins: [
     react(),
+    cspPlugin,
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'favicon.svg'],

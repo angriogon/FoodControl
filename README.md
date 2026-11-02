@@ -77,6 +77,15 @@ Las **gemas no se guardan como contador**: se calculan a partir del historial. A
 2. Haz merge a `main`: el workflow `.github/workflows/deploy.yml` compila y publica en `https://<usuario>.github.io/FoodControl/`.
 3. Abre esa URL en Safari del iPhone y añádela a la pantalla de inicio.
 
+## Seguridad
+
+- Sin servidor, cuentas ni claves: los datos no salen del iPhone salvo la búsqueda de productos (Open Food Facts), que solo envía el texto buscado al pulsar el botón.
+- **Copias de seguridad tratadas como no fiables**: al restaurar, cada campo se valida (tipo, rango y valores permitidos); un archivo dañado o manipulado no puede bloquear la app. Límite de 20 MB.
+- **Pantalla de recuperación**: si algo falla al dibujar la interfaz, en vez de quedarse en blanco permite guardar una copia, reintentar o empezar de cero.
+- **Content Security Policy** en la versión publicada: solo se ejecuta el código de la app y solo se conecta a `world.openfoodfacts.org`.
+- **Base de datos propia** (`foodcontrol`) en IndexedDB, separada de la genérica, porque todas las webs de `angriogon.github.io` comparten origen y almacenamiento.
+- Dependencias fijadas a versión exacta; las que se ejecutan en el iPhone no tienen vulnerabilidades conocidas (`npm audit --omit=dev`). Las avisadas en `workbox-build` solo se usan al compilar.
+
 ## Limitaciones conocidas
 
 - iOS Safari no ofrece la API `BarcodeDetector`, por eso el código de barras se escribe a mano.
