@@ -14,6 +14,7 @@ import { describeItems, menuTotals, portionToEntry, recipeToFood } from '../lib/
 import { suggestionsFor } from '../lib/suggestions';
 import { OnlineResults, useLocalSearch, useOnlineSearch, useRecipeFoods } from './FoodSearch';
 import { MenuAddSheet, RecipeEditorSheet } from './RecipeSheets';
+import { QuickTextSheet } from './QuickText';
 
 // ───────────────────────── Buscar y añadir ─────────────────────────
 
@@ -30,6 +31,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [adjustMenu, setAdjustMenu] = useState<Menu | null>(null);
   const [newRecipe, setNewRecipe] = useState(false);
+  const [writeOpen, setWriteOpen] = useState(false);
   const recipeFoods = useRecipeFoods();
   const localResults = useLocalSearch(query);
   const online = useOnlineSearch(query);
@@ -93,6 +95,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         </form>
 
         <div className="chips" style={{ marginTop: '0.7rem' }}>
+          <button className="chip" onClick={() => setWriteOpen(true)}>✍️ Escribir lo que comí</button>
           <button className="chip" onClick={() => setBarcodeOpen(true)}>📷 Escanear código</button>
           <button className="chip" onClick={() => setQuickOpen(true)}>⚡ Añadido rápido</button>
           <button className="chip" onClick={() => setNewRecipe(true)}>🍲 Nuevo plato</button>
@@ -221,6 +224,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
           setPicked(f);
         }}
       />
+      <QuickTextSheet open={writeOpen} onClose={() => setWriteOpen(false)} date={date} meal={meal} onAdded={onClose} />
       <MenuAddSheet menu={adjustMenu} date={date} meal={meal} onClose={() => setAdjustMenu(null)} onAdded={() => { setAdjustMenu(null); onClose(); }} />
       <RecipeEditorSheet
         open={newRecipe}

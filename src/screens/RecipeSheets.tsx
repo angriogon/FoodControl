@@ -52,8 +52,10 @@ function PortionList({ items, onChange }: { items: Portion[]; onChange: (items: 
 
 // ───────────────────────── Selector de ingredientes ─────────────────────────
 
-export function FoodPickerSheet({ open, onClose, onPick, title = 'Añadir ingrediente', excludeId }: {
+export function FoodPickerSheet({ open, onClose, onPick, title = 'Añadir ingrediente', excludeId, initialQuery }: {
   open: boolean;
+  /** Texto con el que empieza la búsqueda (p. ej. lo que no se reconoció al escribir) */
+  initialQuery?: string;
   onClose: () => void;
   onPick: (p: Portion) => void;
   title?: string;
@@ -68,7 +70,8 @@ export function FoodPickerSheet({ open, onClose, onPick, title = 'Añadir ingred
   const online = useOnlineSearch(query);
 
   useEffect(() => {
-    if (open) setQuery('');
+    if (open) setQuery(initialQuery ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const list = query.trim() ? local : state.recentFoods.length ? state.recentFoods : BASE_FOODS.slice(0, 40);

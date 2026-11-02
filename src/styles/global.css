@@ -437,6 +437,21 @@ button.cell:active,
 }
 .chip.active { background: var(--text); color: var(--bg); }
 
+/* Filas del registro por texto: nombre arriba (entero) y cantidad debajo,
+   para que quepan nombres largos y cifras de 4 dígitos incluso con texto XL */
+.quick-row { padding: 0.65rem 1rem 0.75rem; }
+.quick-row + .quick-row { border-top: 0.5px solid var(--sep); }
+.quick-head { display: flex; align-items: center; gap: 0.5rem; }
+.quick-main { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; text-align: left; color: inherit; }
+.quick-amount { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.75rem; margin: 0.5rem 0 0 3.1rem; }
+.quick-input { width: 7.5rem; }
+.quick-input .input { background: var(--bg); box-shadow: inset 0 0 0 0.5px var(--sep); }
+.quick-alts-wrap { margin: 0.6rem 0 0 3.1rem; }
+
+/* Alternativas del registro por texto: en varias líneas para que se vean todas */
+.quick-alts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.quick-alts .chip { background: var(--bg); box-shadow: inset 0 0 0 0.5px var(--sep); white-space: normal; text-align: left; }
+
 /* Control segmentado iOS */
 .segmented {
   display: flex;
