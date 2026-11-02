@@ -1,8 +1,8 @@
 # FoodControl 🌱
 
-Web app (PWA) para iPhone para llevar el control diario de **lo que comes, bebes y entrenas**, con una mascota (**Brotín**) que crece y se personaliza a medida que mantienes buenos hábitos.
+Web app (PWA) para iPhone para llevar el control diario de **lo que comes, bebes y entrenas**, con una mascota que eliges entre 6 especies (brote, gatito, panda, pollito, conejito y dino) y que se personaliza a medida que mantienes buenos hábitos.
 
-Diseño minimalista pensado para iOS: tipografías del sistema (SF Pro / New York), hojas inferiores con gesto de arrastre, barra de pestañas translúcida, safe areas (Dynamic Island y home indicator) y modo oscuro automático. Optimizada para iPhone Air (420×912 pt) y adaptada desde iPhone SE hasta los Pro Max.
+Diseño blanco y minimalista al estilo de las apps de Apple: tipografía del sistema (SF Pro), títulos grandes, listas agrupadas, hojas inferiores con gesto de arrastre, barra de pestañas translúcida y safe areas (Dynamic Island y home indicator). Optimizada para iPhone Air (420×912 pt) y adaptada desde iPhone SE hasta los Pro Max.
 
 ## Funcionalidades
 
@@ -12,12 +12,20 @@ Diseño minimalista pensado para iOS: tipografías del sistema (SF Pro / New Yor
 | **Diario** | Resumen de kcal (ingeridas / restantes / quemadas), macros, 4 comidas con objetivo propio, actividades, agua (vasos) y notas. Navegación por días (también futuros para planificar). |
 | **Análisis** | Diario o por comida: análisis general, calidad de los alimentos, desglose de macros y de comidas, fuente principal de cada macro y sugerencias. |
 | **Logros** | 19 logros con progreso (rachas, agua, calidad, proteína, fibra, actividad, peso…). Cada uno desbloquea un artículo para la mascota y +50 gemas. |
-| **Mascota** | Nivel (le crece una hoja por nivel), estado de ánimo según tu día y armario: colores, gorros, gafas, complementos y escenarios. Algunos artículos se compran con gemas. |
+| **Mascota** | 6 especies a elegir, nivel, estado de ánimo según tu día y armario con 54 artículos en 7 zonas: cabeza, cara, cuello, ropa, mano, color y fondo. Cada artículo se previsualiza sobre tu mascota; unos son gratis, otros se compran con gemas y otros se ganan con logros. |
 | **Perfil** | Peso inicial/actual/objetivo, gráfica, IMC, resumen nutricional de 7 días, objetivos y copias de seguridad. |
 
 **Añadir alimentos**: base local de 115 alimentos habituales en España (funciona sin conexión), búsqueda online en [Open Food Facts](https://world.openfoodfacts.org) (productos de supermercado con Nutri-Score), código de barras (introduciendo los dígitos), alimentos propios, recientes, *añadido rápido* de kcal y “copiar la comida de ayer”.
 
 **Cálculo de objetivos**: Mifflin-St Jeor × factor de actividad, ± déficit/superávit según el ritmo semanal elegido (1 kg ≈ 7700 kcal), con un mínimo de seguridad. Macros y reparto por comidas configurables.
+
+## Accesibilidad
+
+- **Tamaño de texto**: sigue el de iOS (Dynamic Type) o se fija en la app (Normal / Grande / Muy grande). Toda la interfaz está en `rem`, así que escalan también botones, anillos y gráficos.
+- **Zoom bloqueado** (pellizco y doble toque) a petición; el ajuste de tamaño de texto lo sustituye.
+- **Tema** claro, oscuro o automático, y opción de **contraste aumentado**.
+- Compatible con **VoiceOver**: anillos y barras anuncian su valor, botones de icono con etiqueta, controles segmentados y comidas plegables con estado (`aria-pressed`, `aria-expanded`).
+- Áreas táctiles de 44 pt, textos secundarios con contraste ≥ 4,5:1 y respeto a “Reducir movimiento”.
 
 ## Dónde se guardan los datos
 

@@ -1,6 +1,21 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose } from './Icons';
+
+// ───── Bloqueo de scroll del fondo ─────
+// Antes cada hoja guardaba y restauraba `body.style.overflow`. Con hojas
+// abiertas una encima de otra, si se cerraban en otro orden el fondo se
+// quedaba bloqueado hasta reiniciar la app (el fallo de scroll). Ahora un
+// contador global garantiza que el bloqueo se quita al cerrar la última.
+let openSheets = 0;
+function lockScroll() {
+  openSheets++;
+  document.documentElement.classList.add('sheet-open');
+}
+function unlockScroll() {
+  openSheets = Math.max(0, openSheets - 1);
+  if (openSheets === 0) document.documentElement.classList.remove('sheet-open');
+}
 
 interface Props {
   open: boolean;
@@ -9,28 +24,37 @@ interface Props {
   children: ReactNode;
   footer?: ReactNode;
   full?: boolean;
+  /** Botón opcional a la izquierda (p. ej. “Atrás”) */
+  left?: ReactNode;
 }
 
 /**
  * Hoja inferior al estilo iOS. Se cierra tocando fuera, con la X o
- * arrastrando la cabecera hacia abajo (como las sheets nativas).
+ * arrastrando la cabecera hacia abajo.
  */
-export function Sheet({ open, onClose, title, children, footer, full }: Props) {
+export function Sheet({ open, onClose, title, children, footer, full, left }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y: number; dy: number } | null>(null);
+  const titleId = useId();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    // Bloquea el scroll del fondo mientras la hoja está abierta
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    lockScroll();
+    const prevFocus = document.activeElement as HTMLElement | null;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current();
     window.addEventListener('keydown', onKey);
+    // Accesibilidad: lleva el foco a la hoja para VoiceOver
+    requestAnimationFrame(() => {
+      if (!sheetRef.current?.contains(document.activeElement)) sheetRef.current?.focus({ preventScroll: true });
+    });
     return () => {
-      document.body.style.overflow = prev;
+      unlockScroll();
       window.removeEventListener('keydown', onKey);
+      prevFocus?.focus?.({ preventScroll: true });
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -51,19 +75,28 @@ export function Sheet({ open, onClose, title, children, footer, full }: Props) {
     el.style.transition = 'transform 0.25s ease';
     el.style.transform = close ? 'translateY(100%)' : '';
     drag.current = null;
-    if (close) setTimeout(onClose, 200);
+    if (close) setTimeout(() => closeRef.current(), 200);
   };
 
   return createPortal(
     <>
-      <div className="sheet-backdrop" onClick={onClose} />
-      <div className={`sheet${full ? ' full' : ''}`} ref={sheetRef} role="dialog" aria-modal="true">
+      <div className="sheet-backdrop" onClick={onClose} aria-hidden="true" />
+      <div
+        className={`sheet${full ? ' full' : ''}`}
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        style={{ outline: 'none' }}
+      >
         <div className="sheet-header" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-          <div className="sheet-handle" />
-          <div className="row between">
-            <div className="sheet-title grow">{title}</div>
+          <div className="sheet-grabber" aria-hidden="true" />
+          <div className="sheet-bar">
+            <div>{left}</div>
+            <h2 className="sheet-title ellipsis" id={titleId}>{title}</h2>
             <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
-              <IconClose size={20} />
+              <IconClose size={16} />
             </button>
           </div>
         </div>

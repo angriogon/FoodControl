@@ -101,15 +101,22 @@ export interface Profile {
   onboarded: boolean;
 }
 
+export type Species = 'brote' | 'gato' | 'panda' | 'pollito' | 'conejo' | 'dino';
+
+export interface Equipped {
+  color: string;
+  hat: string;
+  face: string;
+  neck: string;
+  body: string;
+  hand: string;
+  scene: string;
+}
+
 export interface PetState {
+  species: Species;
   name: string;
-  equipped: {
-    color: string;
-    hat: string;
-    face: string;
-    neck: string;
-    scene: string;
-  };
+  equipped: Equipped;
   /** Artículos comprados con gemas */
   purchased: string[];
 }
@@ -127,8 +134,18 @@ export interface AppState {
   achievements: Record<string, string>;
   /** Gemas gastadas en la tienda de la mascota */
   gemsSpent: number;
+  ui: UiSettings;
   lastBackupAt?: string;
   createdAt: string;
+}
+
+/** Ajustes de accesibilidad y apariencia */
+export interface UiSettings {
+  /** 'auto' sigue el tamaño de texto de Ajustes de iOS (Dynamic Type) */
+  textSize: 'auto' | 'm' | 'l' | 'xl';
+  theme: 'auto' | 'light' | 'dark';
+  /** Contraste aumentado: textos secundarios más oscuros y bordes visibles */
+  highContrast: boolean;
 }
 
 export interface Targets {

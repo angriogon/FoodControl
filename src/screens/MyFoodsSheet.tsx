@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Food } from '../types';
 import { Sheet } from '../components/Sheet';
-import { IconPencil, IconTrash } from '../components/Icons';
+import { IconTrash } from '../components/Icons';
 import { toast } from '../components/Toast';
 import { actions, useAppState } from '../store/store';
 import { CustomFoodSheet, FoodRow } from './FoodSheets';
@@ -14,23 +14,22 @@ export function MyFoodsSheet({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <>
       <Sheet open={open} onClose={onClose} full title="Mis alimentos" footer={<button className="btn block" onClick={() => setCreating(true)}>Crear alimento</button>}>
-        <p className="muted small" style={{ marginTop: 0 }}>
+        <p className="muted small" style={{ marginTop: '0.0rem' }}>
           Tus recetas y productos guardados. Aparecen primero al buscar.
         </p>
-        {!state.customFoods.length && <p className="center muted" style={{ padding: 30 }}>🥣<br />Aún no has creado ningún alimento.</p>}
-        <div className="list">
+        {!state.customFoods.length && <p className="center muted" style={{ padding: '1.76rem' }}>🥣<br />Aún no has creado ningún alimento.</p>}
+        <div className="group">
           {state.customFoods.map((f) => (
             <FoodRow
               key={f.id}
               food={f}
               onClick={() => setEditing(f)}
               right={
-                <span className="row" style={{ gap: 6 }}>
-                  <span className="icon-btn" style={{ width: 34, height: 34 }}><IconPencil size={16} /></span>
-                  <span
-                    role="button"
+                <span className="row" style={{ gap: '0.35rem' }}>
+                  <button
+                    aria-label={`Eliminar ${f.name}`}
                     className="icon-btn"
-                    style={{ width: 34, height: 34 }}
+                    
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm(`¿Eliminar “${f.name}”? Los registros ya hechos se conservan.`)) {
@@ -39,8 +38,8 @@ export function MyFoodsSheet({ open, onClose }: { open: boolean; onClose: () => 
                       }
                     }}
                   >
-                    <IconTrash size={16} color="var(--bad)" />
-                  </span>
+                    <IconTrash size={16} color="var(--danger)" />
+                  </button>
                 </span>
               }
             />

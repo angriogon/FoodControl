@@ -51,12 +51,12 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
   const mealTitle = meal ? MEALS.find((m) => m.id === meal)!.label : null;
 
   return (
-    <Sheet open={open} onClose={onClose} full title={mealTitle ? `Análisis · ${mealTitle}` : 'Análisis diario ✨'}>
-      <p className="muted" style={{ marginTop: -4 }}>{longDate(date)}</p>
+    <Sheet open={open} onClose={onClose} full title={mealTitle ? `Análisis · ${mealTitle}` : 'Análisis del día'}>
+      <p className="muted center small" style={{ marginBottom: '0.8rem' }}>{longDate(date)}</p>
 
       {!entries.length ? (
-        <div className="card center" style={{ padding: 30 }}>
-          <div style={{ fontSize: 44 }}>🍽️</div>
+        <div className="card center" style={{ padding: '1.76rem' }}>
+          <div style={{ fontSize: '2.59rem' }}>🍽️</div>
           <p className="muted">Aún no hay alimentos registrados{meal ? ' en esta comida' : ' este día'}.</p>
         </div>
       ) : (
@@ -64,35 +64,35 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
           {/* General */}
           <div className="card">
             <div className="row"><b>⭐ Análisis general</b></div>
-            <h3 style={{ fontSize: 21, margin: '12px 0 8px' }}>{general.title}</h3>
-            <p className="muted" style={{ margin: 0 }}>{general.text}</p>
+            <h3 style={{ fontSize: '1.24rem', margin: '0.71rem 0 0.47rem' }}>{general.title}</h3>
+            <p className="muted" style={{ margin: '0.0rem' }}>{general.text}</p>
             {!meal && (
-              <p style={{ fontWeight: 600, margin: '14px 0 0' }}>
-                <span className="grade" style={{ background: 'var(--primary)', color: 'var(--primary-text)', borderRadius: 99 }}>{mealsLogged}</span>{' '}
+              <p style={{ fontWeight: 600, margin: '0.82rem 0 0' }}>
+                <span className="grade" style={{ background: 'var(--text)', color: 'var(--bg)', borderRadius: 99 }}>{mealsLogged}</span>{' '}
                 comida{mealsLogged === 1 ? '' : 's'} registrada{mealsLogged === 1 ? '' : 's'}
               </p>
             )}
-            <div className="row" style={{ marginTop: 18, alignItems: 'flex-start', gap: 6 }}>
+            <div className="row" style={{ marginTop: '1.06rem', alignItems: 'flex-start', gap: '0.35rem' }}>
               <div className="center">
-                <Ring value={totals.kcal} max={budget} size={82} stroke={7} color={totals.kcal > budget * 1.1 ? 'var(--bad)' : 'var(--good)'}>
-                  <span className="num" style={{ fontSize: 20, fontWeight: 700 }}>{fmt(Math.abs(budget - totals.kcal))}</span>
+                <Ring value={totals.kcal} max={budget} size="4.8rem" stroke={8} color={totals.kcal > budget * 1.1 ? 'var(--danger)' : 'var(--good)'}>
+                  <span className="num" style={{ fontSize: '1.18rem', fontWeight: 700 }}>{fmt(Math.abs(budget - totals.kcal))}</span>
                 </Ring>
-                <div className="small" style={{ marginTop: 6 }}>{budget - totals.kcal >= 0 ? 'kcal rest.' : 'kcal de más'}</div>
+                <div className="small" style={{ marginTop: '0.35rem' }}>{budget - totals.kcal >= 0 ? 'kcal rest.' : 'kcal de más'}</div>
               </div>
               <div className="grow">
-                <MacroRings value={totals} target={targets} size={60} />
+                <MacroRings value={totals} target={targets} size={3.3} />
               </div>
             </div>
           </div>
 
           {/* Calidad */}
           <div className="card">
-            <div className="row between"><b style={{ color: '#2C4A7C' }}>💙 Calidad de alimentos</b><IconInfo size={20} className="faint" /></div>
-            <div className="row" style={{ marginTop: 14 }}>
-              <span style={{ fontSize: 40 }}>{quality.tone === 'good' ? '😊' : quality.tone === 'ok' ? '😐' : quality.tone === 'bad' ? '😟' : '🤔'}</span>
-              <b style={{ fontSize: 24 }}>{quality.label}</b>
+            <div className="row between"><b>💙 Calidad de alimentos</b><IconInfo size={20} className="faint" /></div>
+            <div className="row" style={{ marginTop: '0.82rem' }}>
+              <span style={{ fontSize: '2.35rem' }}>{quality.tone === 'good' ? '😊' : quality.tone === 'ok' ? '😐' : quality.tone === 'bad' ? '😟' : '🤔'}</span>
+              <b style={{ fontSize: '1.41rem' }}>{quality.label}</b>
             </div>
-            <p className="muted" style={{ marginBottom: 0 }}>{quality.text}</p>
+            <p className="muted" style={{ marginBottom: '0.0rem' }}>{quality.text}</p>
             <BestWorst entries={entries} />
           </div>
 
@@ -100,18 +100,18 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
 
           {/* Desglose macro */}
           <div className="card">
-            <b style={{ color: '#B49A00' }}>👁️ Desglose macro</b>
+            <b>📊 Desglose macro</b>
             <p className="muted small">De dónde vienen tus calorías.</p>
             <StackedBar parts={macroKcal.map((m) => ({ value: m.kcal, color: m.color, key: m.key }))} total={sumMacroKcal} />
-            <div className="row" style={{ flexWrap: 'wrap', gap: '6px 16px', marginTop: 12 }}>
+            <div className="row" style={{ flexWrap: 'wrap', gap: '0.35rem 0.94rem', marginTop: '0.71rem' }}>
               {macroKcal.map((m) => (
-                <span key={m.key} className="row small" style={{ gap: 6 }}>
+                <span key={m.key} className="row small" style={{ gap: '0.35rem' }}>
                   <Dot color={m.color} /> {m.label}
                 </span>
               ))}
             </div>
-            <div className="card flat small" style={{ marginTop: 14, padding: 14 }}>
-              <div className="muted" style={{ marginBottom: 6 }}>Comparado con tu objetivo</div>
+            <div className="card small" style={{ marginTop: '0.82rem', padding: '0.82rem', background: 'var(--bg)' }}>
+              <div className="muted" style={{ marginBottom: '0.35rem' }}>Comparado con tu objetivo</div>
               {(['protein', 'carbs', 'fat'] as const).map((k) => {
                 const m = macroKcal.find((x) => x.key === k)!;
                 const real = sumMacroKcal ? Math.round((m.kcal / sumMacroKcal) * 100) : 0;
@@ -123,26 +123,26 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
                 );
               })}
             </div>
-            <p style={{ marginBottom: 0 }}>{macroInsight(macroKcal, sumMacroKcal, state.profile.macroSplit)}</p>
+            <p style={{ marginBottom: '0.0rem' }}>{macroInsight(macroKcal, sumMacroKcal, state.profile.macroSplit)}</p>
           </div>
 
           {/* Desglose por comidas */}
           {!meal && (
             <div className="card">
-              <b style={{ color: '#E08A2E' }}>🍽️ Desglose de comidas</b>
+              <b>🍽️ Desglose de comidas</b>
               <p className="muted small">Cómo se reparten tus calorías.</p>
-              <div className="row between" style={{ fontWeight: 600, margin: '6px 0 10px' }}>
+              <div className="row between" style={{ fontWeight: 600, margin: '0.35rem 0 0.59rem' }}>
                 <span>Calorías consumidas</span><span className="num">{fmt(totals.kcal)} kcal</span>
               </div>
               <StackedBar
                 parts={MEALS.map((m) => ({ key: m.id, color: MEAL_COLORS[m.id], value: sumNutrients(day.entries.filter((e) => e.meal === m.id).map((e) => e.nutrients)).kcal }))}
                 total={totals.kcal}
               />
-              <div className="grid-2" style={{ marginTop: 14 }}>
+              <div className="grid-2" style={{ marginTop: '0.82rem' }}>
                 {MEALS.map((m) => {
                   const k = sumNutrients(day.entries.filter((e) => e.meal === m.id).map((e) => e.nutrients)).kcal;
                   return (
-                    <div key={m.id} className="row" style={{ alignItems: 'flex-start', gap: 8 }}>
+                    <div key={m.id} className="row" style={{ alignItems: 'flex-start', gap: '0.47rem' }}>
                       <Dot color={MEAL_COLORS[m.id]} size={14} />
                       <div>
                         <div style={{ fontWeight: 600 }}>{m.label}</div>
@@ -161,7 +161,7 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
               entries={entries} timeFactor={timeFactor} extra={m.key === 'fat' ? [['Grasa saturada', totals.satFat ?? 0]] : m.key === 'carbs' ? [['Azúcares', totals.sugar ?? 0]] : []} />
           ))}
 
-          <button className="link" style={{ margin: '18px auto 0', display: 'flex' }} onClick={() => setShowMore((v) => !v)}>
+          <button className="link" style={{ margin: '1.06rem auto 0', display: 'flex' }} onClick={() => setShowMore((v) => !v)}>
             {showMore ? 'Ocultar' : 'Mostrar'} cómo se calcula <IconChevronDown size={18} style={{ transform: showMore ? 'rotate(180deg)' : undefined }} />
           </button>
           {showMore && (
@@ -178,22 +178,22 @@ export function AnalysisSheet({ open, onClose, date, meal }: { open: boolean; on
 }
 
 function Dot({ color, size = 12 }: { color: string; size?: number }) {
-  return <span style={{ width: size, height: size, borderRadius: 99, background: color, display: 'inline-block', flexShrink: 0, marginTop: 3 }} />;
+  return <span style={{ width: size, height: size, borderRadius: 99, background: color, display: 'inline-block', flexShrink: 0, marginTop: '0.18rem' }} />;
 }
 
 function StackedBar({ parts, total }: { parts: { key: string; value: number; color: string }[]; total: number }) {
   const visible = parts.filter((p) => p.value > 0);
   return (
-    <div style={{ display: 'flex', gap: 4, height: 40 }}>
+    <div style={{ display: 'flex', gap: '0.24rem', height: '2.4rem' }}>
       {visible.map((p) => {
         const pct = total > 0 ? (p.value / total) * 100 : 0;
         return (
-          <div key={p.key} style={{ flex: `${pct} 0 0`, background: p.color, borderRadius: 12, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 15, minWidth: 8, overflow: 'hidden' }}>
+          <div key={p.key} style={{ flex: `${pct} 0 0`, background: p.color, borderRadius: '0.6rem', display: 'grid', placeItems: 'center', color: '#1c1c1e', fontWeight: 700, fontSize: '0.82rem', minWidth: 8, overflow: 'hidden' }}>
             {pct >= 9 ? `${Math.round(pct)}%` : ''}
           </div>
         );
       })}
-      {!visible.length && <div style={{ flex: 1, background: 'var(--card-2)', borderRadius: 12 }} />}
+      {!visible.length && <div style={{ flex: 1, background: 'var(--card-2)', borderRadius: '0.6rem' }} />}
     </div>
   );
 }
@@ -208,28 +208,27 @@ function MacroDetail({ k, label, color, value, target, entries, timeFactor, extr
   const low = status.tone === 'warn' && value < target;
   return (
     <div className="card">
-      <div className="row between"><b style={{ fontSize: 19 }}>{label}</b></div>
-      <div className="bar lg" style={{ marginTop: 12, background: `var(--${macroVar(k)}-bg)` }}>
+      <div className="row between"><b>{label}</b><span className="num bold">{fmt(value)} <span className="muted">/ {fmt(target)} g</span></span></div>
+      <div className="bar lg" style={{ marginTop: '0.71rem', background: `var(--${macroVar(k)}-bg)` }}>
         <span style={{ width: `${Math.min(100, target ? (value / target) * 100 : 0)}%`, background: color }} />
-        <span className="bar-label">{fmt(value)}/{fmt(target)} g</span>
       </div>
-      <div className={`status ${status.tone}`} style={{ marginTop: 10 }}>
+      <div className={`status ${status.tone}`} style={{ marginTop: '0.59rem' }}>
         {status.tone === 'good' ? '✅' : status.tone === 'ok' ? '🟡' : '🟠'} {status.label}
       </div>
       {extra.map(([l, v]) => (
-        <div key={l} className="row between" style={{ marginTop: 10 }}>
+        <div key={l} className="row between" style={{ marginTop: '0.59rem' }}>
           <span>{l}</span><b className="num">{fmt(v, 1)} g</b>
         </div>
       ))}
       {top && (
-        <p style={{ marginBottom: low ? 8 : 0 }}>
+        <p style={{ marginBottom: low ? '0.5rem' : 0 }}>
           <b>{top.name}</b> es tu principal fuente de {label.toLowerCase()}, con el {pct}% del total.
         </p>
       )}
       {low && (
         <>
           <b>Puedes añadir, por ejemplo:</b>
-          <ul style={{ margin: '6px 0 0', paddingLeft: 20 }}>
+          <ul style={{ margin: '0.35rem 0 0', paddingLeft: '1.2rem' }}>
             {MACRO_SUGGESTIONS[k].slice(0, 3).map((s) => <li key={s}>{s}</li>)}
           </ul>
         </>
@@ -243,11 +242,11 @@ function BestWorst({ entries }: { entries: FoodEntry[] }) {
   const worst = entries.filter((e) => e.grade === 'D' || e.grade === 'E').slice(0, 3);
   if (!best.length && !worst.length) return null;
   return (
-    <div style={{ marginTop: 14 }}>
-      {best.length > 0 && <div className="small muted" style={{ marginBottom: 4 }}>Lo mejor</div>}
-      {best.map((e) => <div key={e.id} className="row small" style={{ padding: '3px 0' }}><GradeBadge grade={e.grade} /><span className="ellipsis">{e.name}</span></div>)}
-      {worst.length > 0 && <div className="small muted" style={{ margin: '10px 0 4px' }}>A moderar</div>}
-      {worst.map((e) => <div key={e.id} className="row small" style={{ padding: '3px 0' }}><GradeBadge grade={e.grade} /><span className="ellipsis">{e.name}</span></div>)}
+    <div style={{ marginTop: '0.82rem' }}>
+      {best.length > 0 && <div className="small muted" style={{ marginBottom: '0.24rem' }}>Lo mejor</div>}
+      {best.map((e) => <div key={e.id} className="row small" style={{ padding: '0.18rem 0' }}><GradeBadge grade={e.grade} /><span className="ellipsis">{e.name}</span></div>)}
+      {worst.length > 0 && <div className="small muted" style={{ margin: '0.59rem 0 0.24rem' }}>A moderar</div>}
+      {worst.map((e) => <div key={e.id} className="row small" style={{ padding: '0.18rem 0' }}><GradeBadge grade={e.grade} /><span className="ellipsis">{e.name}</span></div>)}
     </div>
   );
 }

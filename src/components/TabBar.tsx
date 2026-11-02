@@ -12,23 +12,27 @@ const TABS: { id: Tab; label: string; Icon: typeof IconHome }[] = [
 
 export function TabBar({ tab, onChange, badges }: { tab: Tab; onChange: (t: Tab) => void; badges?: Partial<Record<Tab, number>> }) {
   return (
-    <nav className="tabbar" aria-label="Navegación principal">
+    <nav className="tabbar" aria-label="Secciones">
       <div className="tabbar-inner">
-        {TABS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            className={`tab${tab === id ? ' active' : ''}`}
-            onClick={() => {
-              if (tab === id) window.scrollTo({ top: 0, behavior: 'smooth' });
-              onChange(id);
-            }}
-            aria-current={tab === id ? 'page' : undefined}
-          >
-            <Icon size={26} filled={tab === id} />
-            {label}
-            {!!badges?.[id] && <span className="badge">{badges[id]}</span>}
-          </button>
-        ))}
+        {TABS.map(({ id, label, Icon }) => {
+          const badge = badges?.[id];
+          return (
+            <button
+              key={id}
+              className="tab"
+              onClick={() => {
+                if (tab === id) window.scrollTo({ top: 0, behavior: 'smooth' });
+                onChange(id);
+              }}
+              aria-current={tab === id ? 'page' : undefined}
+              aria-label={badge ? `${label}, ${badge} novedad${badge === 1 ? '' : 'es'}` : label}
+            >
+              <Icon filled={tab === id} />
+              <span aria-hidden="true">{label}</span>
+              {!!badge && <span className="badge" aria-hidden="true">{badge}</span>}
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

@@ -61,20 +61,20 @@ export function ActivitySheet({ open, onClose, date, weightKg }: { open: boolean
             <IconSearch size={20} className="faint" />
             <input type="search" placeholder="Buscar actividad" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar actividad" />
           </div>
-          <div className="list" style={{ marginTop: 8 }}>
+          <div className="group" style={{ marginTop: '0.47rem' }}>
             {list.map((a) => (
-              <button key={a.id} className="entry-row" onClick={() => setPicked(a)}>
-                <span className="entry-emoji">{a.emoji}</span>
+              <button key={a.id} className="cell" onClick={() => setPicked(a)}>
+                <span className="emoji-tile">{a.emoji}</span>
                 <span className="grow">{a.name}</span>
                 <span className="small muted num">~{activityKcal(a.met, weightKg, 30)} kcal/30 min</span>
               </button>
             ))}
-            <button className="entry-row" onClick={() => setCustom(true)}>
-              <span className="entry-emoji">⭐</span>
+            <button className="cell" onClick={() => setCustom(true)}>
+              <span className="emoji-tile">⭐</span>
               <span className="grow">Otra actividad (introducir kcal)</span>
             </button>
           </div>
-          <p className="small faint" style={{ marginTop: 16 }}>
+          <p className="small faint" style={{ marginTop: '0.94rem' }}>
             Las kcal se estiman con valores MET según tu peso actual ({weightKg} kg). Si tu reloj te da la cifra, introdúcela a mano: será más precisa.
           </p>
         </>

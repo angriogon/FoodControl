@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { IconGear, IconPencil } from '../components/Icons';
+import { Cell, Segmented } from '../components/common';
 import { useAppState, useTargets, currentWeight } from '../store/store';
 import { addDays, shortDate, todayKey, weekdayLetter, diffDays } from '../lib/dates';
 import { dayQuality, dayTotals, fmt, qualityLabel } from '../lib/nutrition';
@@ -8,52 +8,54 @@ import { SettingsSheet } from './Settings';
 
 const GOAL_LABEL = { perder: 'Bajar de peso', mantener: 'Mantener peso', ganar: 'Ganar peso' };
 type Range = 7 | 30 | 180 | 0;
+const TEXT_LABEL = { auto: 'Como en iOS', m: 'Normal', l: 'Grande', xl: 'Muy grande' };
+const THEME_LABEL = { auto: 'Automático', light: 'Claro', dark: 'Oscuro' };
 
 export function Profile({ dataOpen, setDataOpen }: { dataOpen: boolean; setDataOpen: (v: boolean) => void }) {
   const state = useAppState();
   const targets = useTargets();
   const [tab, setTab] = useState<'peso' | 'nutricion'>('peso');
   const [weightOpen, setWeightOpen] = useState(false);
-  const [settings, setSettings] = useState<'perfil' | null>(null);
-  const { profile } = state;
+  const [settings, setSettings] = useState<'perfil' | 'accesibilidad' | null>(null);
+  const { profile, ui } = state;
   const initial = (profile.name || '?').charAt(0).toUpperCase();
 
   return (
-    <div className="screen" style={{ paddingTop: 0 }}>
-      <div className="profile-hero">
-        <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
-          <div className="avatar">{initial}</div>
-          <div className="grow" style={{ paddingTop: 8 }}>
-            <button className="row" style={{ gap: 6, fontSize: 24, fontWeight: 500 }} onClick={() => setSettings('perfil')}>
-              {profile.name || 'Tu perfil'} <IconPencil size={18} />
-            </button>
-            <div style={{ opacity: 0.7, fontSize: 18 }}>{GOAL_LABEL[profile.goal]}</div>
-            <span className="pill num" style={{ marginTop: 10, fontSize: 20, fontWeight: 600, padding: '8px 18px' }}>{fmt(targets.kcal)} kcal / d</span>
-          </div>
-          <button className="icon-btn" style={{ background: 'rgba(255,255,255,.6)' }} onClick={() => setSettings('perfil')} aria-label="Ajustes">
-            <IconGear size={24} />
-          </button>
+    <div className="screen">
+      <header className="header">
+        <div>
+          <div className="eyebrow">{GOAL_LABEL[profile.goal]}</div>
+          <h1 className="large-title">Perfil</h1>
         </div>
-        <div className="tabs-underline">
-          <button className={tab === 'peso' ? 'active' : ''} onClick={() => setTab('peso')}>Peso</button>
-          <button className={tab === 'nutricion' ? 'active' : ''} onClick={() => setTab('nutricion')}>Nutrición</button>
-        </div>
+      </header>
+
+      <button className="card row" style={{ width: '100%' }} onClick={() => setSettings('perfil')} aria-label={`${profile.name || 'Tu perfil'}. Objetivo ${fmt(targets.kcal)} kilocalorías al día. Editar`}>
+        <span className="avatar" aria-hidden="true">{initial}</span>
+        <span className="grow">
+          <span className="bold" style={{ display: 'block', fontSize: '1.2rem' }}>{profile.name || 'Tu perfil'}</span>
+          <span className="small muted">Objetivo: {fmt(targets.kcal)} kcal/día</span>
+        </span>
+        <span className="link small">Editar</span>
+      </button>
+
+      <div className="mt">
+        <Segmented label="Sección" value={tab} onChange={setTab} options={[{ value: 'peso', label: 'Peso' }, { value: 'nutricion', label: 'Nutrición' }]} />
       </div>
 
       {tab === 'peso' ? <WeightTab onAdd={() => setWeightOpen(true)} /> : <NutritionTab />}
 
-      <div className="card list" style={{ marginTop: 24, paddingTop: 4, paddingBottom: 4 }}>
-        <button className="settings-row" onClick={() => setSettings('perfil')}>
-          <span className="settings-icon">🎯</span><span className="grow">Objetivos, macros y agua</span><span className="faint">›</span>
-        </button>
-        <button className="settings-row" onClick={() => setDataOpen(true)}>
-          <span className="settings-icon">☁️</span><span className="grow">Datos y copia de seguridad</span><span className="faint">›</span>
-        </button>
+      <h2 className="section-header">Ajustes</h2>
+      <div className="group inset-icons">
+        <Cell icon={<span className="icon-tile" style={{ background: '#34c759' }}>🎯</span>} title="Objetivos, macros y agua" onClick={() => setSettings('perfil')} />
+        <Cell icon={<span className="icon-tile" style={{ background: '#007aff' }}>Aa</span>} title="Accesibilidad y apariencia"
+          sub={`Texto: ${TEXT_LABEL[ui.textSize]} · Tema: ${THEME_LABEL[ui.theme]}`} onClick={() => setSettings('accesibilidad')} />
+        <Cell icon={<span className="icon-tile" style={{ background: '#5ac8fa' }}>☁️</span>} title="Datos y copia de seguridad" onClick={() => setDataOpen(true)} />
       </div>
-      <p className="center tiny faint" style={{ marginTop: 18 }}>FoodControl · tus datos se guardan solo en este dispositivo</p>
+      <p className="section-footer center">FoodControl · tus datos se guardan solo en este dispositivo</p>
 
       <WeightSheet open={weightOpen} onClose={() => setWeightOpen(false)} />
       <SettingsSheet open={settings === 'perfil'} onClose={() => setSettings(null)} section="perfil" />
+      <SettingsSheet open={settings === 'accesibilidad'} onClose={() => setSettings(null)} section="accesibilidad" />
       <SettingsSheet open={dataOpen} onClose={() => setDataOpen(false)} section="datos" />
     </div>
   );
@@ -75,46 +77,45 @@ function WeightTab({ onAdd }: { onAdd: () => void }) {
 
   return (
     <>
-      <div className="stat-trio">
-        <div><b>{fmt(profile.startWeightKg, 1)} kg</b><div className="small muted">Peso inicial</div></div>
-        <div><b>{fmt(current, 1)} kg</b><div className="small muted">Peso actual</div></div>
-        <div><b>{fmt(profile.goalWeightKg, 1)} kg</b><div className="small muted">Objetivo</div></div>
+      <div className="card mt">
+        <div className="stat-trio">
+          <div><div className="stat-value">{fmt(profile.startWeightKg, 1)}</div><div className="tiny muted">Inicial (kg)</div></div>
+          <div><div className="stat-value" style={{ color: 'var(--accent)' }}>{fmt(current, 1)}</div><div className="tiny muted">Actual (kg)</div></div>
+          <div><div className="stat-value">{fmt(profile.goalWeightKg, 1)}</div><div className="tiny muted">Objetivo (kg)</div></div>
+        </div>
+        {Math.abs(lost) >= 0.1 && (
+          <p className="center small bold" style={{ marginTop: '0.8rem', color: lost > 0 === (profile.goal !== 'ganar') ? 'var(--good)' : 'var(--warn)' }}>
+            Has {lost > 0 ? 'perdido' : 'ganado'} {fmt(Math.abs(lost), 1)} kg desde el inicio
+          </p>
+        )}
       </div>
-      <button className="btn block" onClick={onAdd}>Añadir un peso</button>
+      <button className="btn block mt" onClick={onAdd}>Añadir peso</button>
 
-      <div className="segmented" style={{ marginTop: 22 }}>
-        {([[7, '7 días'], [30, '1 mes'], [180, '6 meses'], [0, 'Todo']] as [Range, string][]).map(([r, l]) => (
-          <button key={r} className={range === r ? 'active' : ''} onClick={() => setRange(r)}>{l}</button>
-        ))}
-      </div>
+      <h2 className="section-title">Evolución</h2>
+      <Segmented label="Periodo" value={range} onChange={setRange}
+        options={([[7, '7 días'], [30, '1 mes'], [180, '6 meses'], [0, 'Todo']] as [Range, string][]).map(([v, l]) => ({ value: v, label: l }))} />
 
-      {Math.abs(lost) >= 0.1 && (
-        <p className="center" style={{ fontWeight: 600, fontSize: 18, color: lost > 0 === (profile.goal !== 'ganar') ? 'var(--good)' : 'var(--warn)' }}>
-          Has {lost > 0 ? 'perdido' : 'ganado'} {fmt(Math.abs(lost), 1)} kg desde el inicio
-        </p>
-      )}
-
-      <div className="card" style={{ marginTop: 12 }}>
+      <div className="card mt">
         {points.length >= 2 ? (
           <WeightChart points={points} goal={profile.goalWeightKg} />
         ) : (
-          <p className="center muted" style={{ padding: '24px 0' }}>
+          <p className="center muted small" style={{ padding: '1.4rem 0' }}>
             {points.length ? 'Registra al menos dos pesos para ver la gráfica.' : 'No hay registros en este periodo.'}
           </p>
         )}
       </div>
 
-      <div className="grid-2" style={{ marginTop: 14 }}>
-        <div className="card center" style={{ marginTop: 0 }}>
-          <div className="num" style={{ fontSize: 26, fontWeight: 700 }}>{fmt(bmi, 1)}</div>
-          <div className="small muted">IMC · {bmiLabel(bmi)}</div>
+      <div className="grid-2 mt">
+        <div className="card center">
+          <div className="stat-value">{fmt(bmi, 1)}</div>
+          <div className="tiny muted">IMC · {bmiLabel(bmi)}</div>
         </div>
         <div className="card center" style={{ marginTop: 0 }}>
-          <div className="num" style={{ fontSize: 26, fontWeight: 700 }}>{fmt(Math.abs(toGo), 1)} kg</div>
-          <div className="small muted">{Math.abs(toGo) < 0.1 ? '¡Objetivo logrado!' : 'para tu objetivo'}</div>
+          <div className="stat-value">{fmt(Math.abs(toGo), 1)} kg</div>
+          <div className="tiny muted">{Math.abs(toGo) < 0.1 ? '¡Objetivo logrado!' : 'para tu objetivo'}</div>
         </div>
       </div>
-      <p className="tiny faint">El IMC es orientativo: no distingue entre masa muscular y grasa.</p>
+      <p className="section-footer">El IMC es orientativo: no distingue entre masa muscular y grasa.</p>
     </>
   );
 }
@@ -154,7 +155,7 @@ function WeightChart({ points, goal }: { points: { date: string; kg: number }[];
       </defs>
       {ticks.map((t) => (
         <g key={t}>
-          <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--line)" />
+          <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--sep)" />
           <text x={pad.l - 6} y={y(t) + 4} fontSize="11" textAnchor="end" fill="var(--text-3)">{fmt(t)}</text>
         </g>
       ))}
@@ -189,21 +190,21 @@ function NutritionTab() {
 
   return (
     <>
-      <h2 className="section-title" style={{ marginTop: 22 }}>Últimos 7 días</h2>
+      <h2 className="section-title">Últimos 7 días</h2>
       <div className="card">
         <div className="row between small muted"><span>kcal diarias</span><span>Objetivo {fmt(targets.kcal)}</span></div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 150, marginTop: 14, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', height: '9rem', marginTop: '0.8rem', position: 'relative' }} aria-hidden="true">
           <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(targets.kcal / maxK) * 100}%`, borderTop: '2px dashed var(--good)', opacity: 0.6 }} />
           {data.map(({ d, t }) => {
             const over = t.kcal > targets.kcal * 1.1;
             return (
               <div key={d} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                <div style={{ width: '100%', maxWidth: 30, height: `${(t.kcal / maxK) * 100}%`, minHeight: t.kcal ? 4 : 0, borderRadius: 8, background: over ? 'var(--warn)' : d === today ? 'var(--accent-strong)' : 'var(--carbs)' }} />
+                <div style={{ width: '100%', maxWidth: '1.8rem', height: `${(t.kcal / maxK) * 100}%`, minHeight: t.kcal ? 4 : 0, borderRadius: '0.4rem', background: over ? 'var(--warn)' : d === today ? 'var(--kcal)' : 'var(--carbs)' }} />
               </div>
             );
           })}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }} aria-hidden="true">
           {data.map(({ d }) => <div key={d} className="tiny muted center" style={{ flex: 1, fontWeight: d === today ? 700 : 400 }}>{weekdayLetter(d)}</div>)}
         </div>
       </div>
@@ -217,12 +218,12 @@ function NutritionTab() {
           ['Grasa', avg((x) => x.t.fat), targets.fat, 'g'],
           ['Fibra', avg((x) => x.t.fiber), targets.fiber, 'g']
         ].map(([l, v, t, u]) => (
-          <div key={l as string} className="row between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+          <div key={l as string} className="row between" style={{ padding: '0.5rem 0', borderBottom: '0.5px solid var(--sep)' }}>
             <span>{l}</span>
             <span className="num"><b>{fmt(v as number)}</b> <span className="faint">/ {fmt(t as number)} {u}</span></span>
           </div>
         ))}
-        <div className="row between" style={{ paddingTop: 10 }}>
+        <div className="row between" style={{ paddingTop: '0.6rem' }}>
           <span>Calidad media</span>
           <b>{qualityLabel(avgQ).label}{avgQ != null ? ` (${avgQ}/100)` : ''}</b>
         </div>

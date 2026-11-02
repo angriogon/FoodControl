@@ -47,6 +47,17 @@ export default function App() {
     }
   };
 
+  // Accesibilidad y apariencia: tamaño de texto, tema y contraste
+  const { textSize, theme, highContrast } = state.ui;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.text = textSize;
+    root.dataset.theme = theme;
+    root.dataset.contrast = highContrast ? 'high' : 'normal';
+    const dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#000000' : '#FFFFFF');
+  }, [textSize, theme, highContrast]);
+
   // Detecta logros nuevos cada vez que cambian los datos
   useEffect(() => {
     if (!ready || !state.profile.onboarded) return;
@@ -72,27 +83,29 @@ export default function App() {
   }, [tab, unlockedCount, seen]);
 
   if (!ready) {
-    return <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', fontSize: 48 }}>🌱</div>;
+    return <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', fontSize: '3rem' }} aria-label="Cargando">🌱</div>;
   }
 
   if (!state.profile.onboarded) {
     return (
-      <div className="app">
+      <main className="app">
         <Onboarding />
         <Toasts />
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="app">
+    <>
+      <main className="app">
       {tab === 'inicio' && <Home go={go} openData={() => { go('perfil'); setDataOpen(true); }} />}
       {tab === 'diario' && <Diary />}
       {tab === 'logros' && <Achievements />}
       {tab === 'mascota' && <Pet />}
       {tab === 'perfil' && <Profile dataOpen={dataOpen} setDataOpen={setDataOpen} />}
+      </main>
       <TabBar tab={tab} onChange={go} badges={{ logros: Math.max(0, unlockedCount - seen) }} />
       <Toasts />
-    </div>
+    </>
   );
 }

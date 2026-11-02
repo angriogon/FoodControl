@@ -44,16 +44,16 @@ export function WeightSheet({ open, onClose }: { open: boolean; onClose: () => v
         </button>
       }
     >
-      <div className="stepper row" style={{ justifyContent: 'center', gap: 18, margin: '8px 0 6px' }}>
-        <button className="icon-btn" style={{ width: 52, height: 52, fontSize: 22 }} onClick={() => setKg(Math.round((value - 0.1) * 10) / 10)} aria-label="Restar 0,1 kg">−</button>
+      <div className="stepper row" style={{ justifyContent: 'center', gap: '1.06rem', margin: '0.47rem 0 0.35rem' }}>
+        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent)' }} onClick={() => setKg(Math.round((value - 0.1) * 10) / 10)} aria-label="Restar 0,1 kg">−</button>
         <div className="center">
-          <div className="num" style={{ fontSize: 52, fontWeight: 700 }}>{fmt(value, 1)}</div>
+          <div className="num" style={{ fontSize: '3.06rem', fontWeight: 700 }}>{fmt(value, 1)}</div>
           <div className="muted">kg</div>
         </div>
-        <button className="icon-btn" style={{ width: 52, height: 52, fontSize: 22 }} onClick={() => setKg(Math.round((value + 0.1) * 10) / 10)} aria-label="Sumar 0,1 kg">+</button>
+        <button className="icon-btn" style={{ width: '3rem', height: '3rem', fontSize: '1.4rem', color: 'var(--accent)' }} onClick={() => setKg(Math.round((value + 0.1) * 10) / 10)} aria-label="Sumar 0,1 kg">+</button>
       </div>
       {delta != null && Math.abs(delta) >= 0.05 && (
-        <p className="center small" style={{ color: delta < 0 ? 'var(--good)' : 'var(--warn)', margin: '0 0 12px' }}>
+        <p className="center small" style={{ color: delta < 0 ? 'var(--good)' : 'var(--warn)', margin: '0 0 0.71rem' }}>
           {delta < 0 ? '▼' : '▲'} {fmt(Math.abs(delta), 1)} kg desde el {shortDate(prev!.date)}
         </p>
       )}
@@ -71,14 +71,14 @@ export function WeightSheet({ open, onClose }: { open: boolean; onClose: () => v
 
       {state.weights.length > 0 && (
         <>
-          <div className="field-label" style={{ marginTop: 18 }}>Historial</div>
-          <div className="list">
+          <div className="field-label" style={{ marginTop: '1.06rem' }}>Historial</div>
+          <div className="group">
             {[...state.weights].reverse().slice(0, 30).map((w) => (
-              <div key={w.date} className="entry-row">
+              <div key={w.date} className="cell">
                 <span className="grow">{shortDate(w.date)}</span>
                 <b className="num">{fmt(w.kg, 1)} kg</b>
-                <button className="icon-btn" style={{ width: 36, height: 36 }} onClick={() => actions.removeWeight(w.date)} aria-label="Eliminar registro">
-                  <IconTrash size={18} color="var(--bad)" />
+                <button className="icon-btn" onClick={() => actions.removeWeight(w.date)} aria-label="Eliminar registro">
+                  <IconTrash size={18} color="var(--danger)" />
                 </button>
               </div>
             ))}

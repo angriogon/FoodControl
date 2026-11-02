@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import type { FoodEntry, MealId } from '../types';
 import { actions, currentWeight, useAppState, useDay, useSelectedDate, useTargets } from '../store/store';
-import { MEALS, burnedKcal, dayTotals, fmt, mealTotals } from '../lib/nutrition';
-import { addDays, dayLabel, todayKey } from '../lib/dates';
+import { MACROS, MEALS, burnedKcal, dayTotals, fmt, mealTotals } from '../lib/nutrition';
+import { addDays, dayLabel, longDate, todayKey } from '../lib/dates';
 import { useGameStatus } from '../lib/hooks';
 import { Ring } from '../components/Ring';
-import { GradeBadge, ProgressBar } from '../components/common';
-import { Flame, Gem, IconArrowRight, IconCalendar, IconChevronLeft, IconChevronRight, IconPlus, IconSparkles } from '../components/Icons';
+import { Cell, GradeBadge, ProgressBar } from '../components/common';
+import { Flame, Gem, IconCalendar, IconChevronLeft, IconChevronRight, IconPlus, IconSparkles, IconTrash } from '../components/Icons';
 import { AddFoodSheet, FoodAmountSheet, QuickAddSheet, foodFromEntry } from './FoodSheets';
 import { ActivitySheet } from './ActivitySheet';
 import { AnalysisSheet } from './Analysis';
@@ -22,6 +22,8 @@ export function Diary() {
   const [editing, setEditing] = useState<FoodEntry | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [analysis, setAnalysis] = useState<{ meal?: MealId } | null>(null);
+  // Comidas plegadas por defecto: solo se despliega la que toques
+  const [openMeals, setOpenMeals] = useState<Set<MealId>>(new Set());
 
   const totals = dayTotals(day);
   const burned = burnedKcal(day);
@@ -29,102 +31,153 @@ export function Diary() {
   const remaining = budget - totals.kcal;
   const isFuture = date > todayKey();
 
+  const toggleMeal = (m: MealId) =>
+    setOpenMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+
   return (
-    <div className="screen" style={{ paddingTop: 0 }}>
-      {/* Cabecera resumen */}
-      <div className="diary-hero" style={{ marginTop: 0 }}>
-        <div className="row between">
-          <span className="pill num"><Gem /> {fmt(game.balance)}</span>
-          <span className="pill num" style={{ color: 'var(--flame)' }}><Flame /> {game.streak}</span>
+    <div className="screen">
+      <header className="header">
+        <div>
+          <div className="eyebrow">{longDate(date)}</div>
+          <h1 className="large-title">Diario</h1>
         </div>
-        <div className="row between" style={{ marginTop: 6, alignItems: 'center' }}>
-          <div className="center" style={{ width: 90 }}>
-            <div className="num" style={{ fontSize: 28, fontWeight: 600 }}>{fmt(totals.kcal)}</div>
-            <div className="small" style={{ opacity: 0.75 }}>Ingeridas</div>
-          </div>
-          <Ring value={Math.max(0, budget - Math.max(0, remaining))} max={budget} size={156} stroke={9} color="rgba(255,255,255,.95)" track="rgba(255,255,255,.35)">
-            <span className="num" style={{ fontSize: 38, fontWeight: 600, lineHeight: 1 }}>{fmt(Math.abs(remaining))}</span>
-            <span style={{ fontSize: 20, fontWeight: 500 }}>kcal</span>
-            <span className="small" style={{ opacity: 0.75 }}>{remaining >= 0 ? 'Restantes' : 'De más'}</span>
+        <div className="row" style={{ gap: '0.4rem' }}>
+          <span className="pill num" aria-label={`${game.balance} gemas`}><Gem size={18} /> {fmt(game.balance)}</span>
+          <span className="pill num" style={{ color: 'var(--flame)' }} aria-label={`Racha de ${game.streak} días`}><Flame size={18} /> {game.streak}</span>
+        </div>
+      </header>
+
+      <DateNav date={date} setDate={setDate} />
+
+      {/* Resumen del día */}
+      <section className="card mt" aria-label="Resumen de calorías">
+        <div className="summary">
+          <Ring
+            value={totals.kcal}
+            max={budget}
+            size="8.6rem"
+            stroke={11}
+            color={remaining < 0 ? 'var(--danger)' : 'var(--kcal)'}
+            track="var(--card-2)"
+            label={remaining >= 0 ? `Te quedan ${fmt(remaining)} kilocalorías de ${fmt(budget)}` : `Has superado tu objetivo en ${fmt(-remaining)} kilocalorías`}
+          >
+            <span className="num" style={{ fontSize: '1.9rem', fontWeight: 700, lineHeight: 1 }}>{fmt(Math.abs(remaining))}</span>
+            <span className="tiny muted" style={{ marginTop: '0.2rem' }}>{remaining >= 0 ? 'kcal restantes' : 'kcal de más'}</span>
           </Ring>
-          <div className="center" style={{ width: 90 }}>
-            <div className="num" style={{ fontSize: 28, fontWeight: 600 }}>{fmt(burned)}</div>
-            <div className="small" style={{ opacity: 0.75 }}>Quemadas</div>
+          <div className="summary-side">
+            <div>
+              <div className="stat-label">Objetivo</div>
+              <div className="stat-value">{fmt(targets.kcal)}</div>
+            </div>
+            <div>
+              <div className="stat-label">Ingeridas</div>
+              <div className="stat-value">{fmt(totals.kcal)}</div>
+            </div>
+            <div>
+              <div className="stat-label">Quemadas</div>
+              <div className="stat-value" style={{ color: 'var(--flame)' }}>{fmt(burned)}</div>
+            </div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginTop: 14 }}>
-          {([['Grasa', totals.fat, targets.fat], ['Proteínas', totals.protein, targets.protein], ['Carbohid.', totals.carbs, targets.carbs], ['Fibra', totals.fiber, targets.fiber]] as const).map(([l, v, t]) => (
-            <div key={l} className="center">
-              <ProgressBar value={v} max={t} color="#fff" track="rgba(255,255,255,.4)" />
-              <div className="small" style={{ marginTop: 6, opacity: 0.8 }}>{l}</div>
-              <div className="tiny num" style={{ opacity: 0.7 }}>{fmt(v)}/{fmt(t)} g</div>
+        <div className="macro-grid">
+          {MACROS.map((m) => (
+            <div key={m.key}>
+              <div className="row between small">
+                <span className="bold">{m.key === 'carbs' ? 'Carbohid.' : m.label}</span>
+                <span className="num muted">{fmt(totals[m.key])}/{fmt(targets[m.key])} g</span>
+              </div>
+              <ProgressBar value={totals[m.key]} max={targets[m.key]} color={m.color} track={`var(--${m.key}-bg)`} className="mt-s"
+                label={`${m.label}: ${fmt(totals[m.key])} de ${fmt(targets[m.key])} gramos`} />
             </div>
           ))}
         </div>
-        <button className="btn block" style={{ marginTop: 18, background: '#23324A', color: '#fff' }} onClick={() => setAnalysis({})}>
-          <IconSparkles size={20} /> Análisis del día
-        </button>
+      </section>
+
+      <div className="group mt">
+        <Cell
+          icon={<span className="icon-tile" style={{ background: 'linear-gradient(135deg,#5ac8fa,#007aff)' }}><IconSparkles size={16} /></span>}
+          title="Análisis del día"
+          sub="Calidad, macros y recomendaciones"
+          onClick={() => setAnalysis({})}
+        />
       </div>
 
-      <div className="diary-sheet">
-        <DateNav date={date} setDate={setDate} />
+      {isFuture && (
+        <div className="banner small mt">
+          <span aria-hidden="true">🗓️</span>
+          <span>Estás planificando un día futuro. Puedes dejar tus comidas preparadas.</span>
+        </div>
+      )}
 
-        {isFuture && (
-          <div className="banner small" style={{ marginTop: 14 }}>
-            <span>🗓️</span>
-            <span>Estás planificando un día futuro. Puedes dejar tus comidas preparadas.</span>
-          </div>
-        )}
-
-        {MEALS.map((m) => {
-          const entries = day.entries.filter((e) => e.meal === m.id);
-          const t = mealTotals(day, m.id);
-          return (
-            <div key={m.id} className="meal-card">
-              <div className="row">
-                <div className="meal-avatar">{m.emoji}</div>
-                <div className="grow">
-                  <div style={{ fontWeight: 600, fontSize: 20 }}>{m.label}</div>
-                  <div className="muted num" style={{ fontWeight: 600 }}>
-                    {fmt(t.kcal)} / {fmt(targets.meals[m.id])} kcal
-                  </div>
-                </div>
-                <button className="icon-btn dark" style={{ width: 52, height: 52 }} onClick={() => setAddMeal(m.id)} aria-label={`Añadir a ${m.label}`}>
-                  <IconPlus size={24} />
-                </button>
-              </div>
-              {entries.length > 0 && (
-                <>
-                  <div className="list" style={{ marginTop: 8 }}>
-                    {entries.map((e) => (
-                      <button key={e.id} className="entry-row" onClick={() => setEditing(e)}>
-                        <span className="entry-emoji">{e.emoji ?? '🍽️'}</span>
-                        <span className="grow">
-                          <span className="ellipsis" style={{ display: 'block' }}>{e.name}</span>
-                          <span className="small muted">
-                            {e.unit === 'kcal' ? 'Añadido rápido' : `${fmt(e.amount)} ${e.unit}`} · P {fmt(e.nutrients.protein)} · C {fmt(e.nutrients.carbs)} · G {fmt(e.nutrients.fat)}
-                          </span>
-                        </span>
-                        <GradeBadge grade={e.grade} />
-                        <span className="num" style={{ fontWeight: 600, minWidth: 44, textAlign: 'right' }}>{fmt(e.nutrients.kcal)}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <button className="analysis-link" onClick={() => setAnalysis({ meal: m.id })}>
-                    <IconSparkles size={22} />
-                    <span className="grow">Ver el análisis de esta comida</span>
-                    <IconArrowRight size={22} />
-                  </button>
-                </>
-              )}
+      <h2 className="section-title">Comidas</h2>
+      {MEALS.map((m) => {
+        const entries = day.entries.filter((e) => e.meal === m.id);
+        const t = mealTotals(day, m.id);
+        const open = openMeals.has(m.id) && entries.length > 0;
+        const summary = entries.map((e) => e.name).join(', ');
+        const bodyId = `meal-${m.id}`;
+        return (
+          <section key={m.id} className="meal" data-open={open} aria-label={m.label}>
+            <div className="meal-head">
+              <button
+                className="meal-toggle"
+                onClick={() => (entries.length ? toggleMeal(m.id) : setAddMeal(m.id))}
+                aria-expanded={entries.length ? open : undefined}
+                aria-controls={entries.length ? bodyId : undefined}
+              >
+                <span className="meal-emoji" aria-hidden="true">{m.emoji}</span>
+                <span className="grow">
+                  <span className="row between" style={{ gap: '0.5rem' }}>
+                    <span className="bold">{m.label}</span>
+                    <span className="num small muted">{fmt(t.kcal)} / {fmt(targets.meals[m.id])} kcal</span>
+                  </span>
+                  <span className="small muted ellipsis" style={{ display: 'block', marginTop: '0.1rem' }}>
+                    {entries.length ? `${entries.length} alimento${entries.length === 1 ? '' : 's'} · ${summary}` : 'Sin registrar'}
+                  </span>
+                  <ProgressBar value={t.kcal} max={targets.meals[m.id]} color={t.kcal > targets.meals[m.id] * 1.15 ? 'var(--warn)' : 'var(--kcal)'} className="meal-progress" />
+                </span>
+                {entries.length > 0 && <IconChevronRight size={16} className="meal-chevron" />}
+              </button>
+              <button className="add-btn" onClick={() => setAddMeal(m.id)} aria-label={`Añadir alimento a ${m.label}`}>
+                <IconPlus size={18} />
+              </button>
             </div>
-          );
-        })}
+            {open && (
+              <div className="meal-body" id={bodyId}>
+                {entries.map((e) => (
+                  <button key={e.id} className="cell" onClick={() => setEditing(e)}
+                    aria-label={`${e.name}, ${fmt(e.nutrients.kcal)} kilocalorías. Editar`}>
+                    <span className="emoji-tile" aria-hidden="true">{e.emoji ?? '🍽️'}</span>
+                    <span className="grow">
+                      <span className="cell-title ellipsis">{e.name}</span>
+                      <span className="cell-sub">
+                        {e.unit === 'kcal' ? 'Añadido rápido' : `${fmt(e.amount)} ${e.unit}`} · P {fmt(e.nutrients.protein)} · C {fmt(e.nutrients.carbs)} · G {fmt(e.nutrients.fat)}
+                      </span>
+                    </span>
+                    <GradeBadge grade={e.grade} />
+                    <span className="num bold" style={{ minWidth: '2.6rem', textAlign: 'right' }}>{fmt(e.nutrients.kcal)}</span>
+                  </button>
+                ))}
+                <Cell
+                  className="cell-sep"
+                  icon={<IconSparkles size={18} color="var(--accent)" />}
+                  title={<span style={{ color: 'var(--accent)' }}>Ver análisis de {m.label.toLowerCase()}</span>}
+                  onClick={() => setAnalysis({ meal: m.id })}
+                />
+              </div>
+            )}
+          </section>
+        );
+      })}
 
-        <ActivitiesCard date={date} onAdd={() => setActivityOpen(true)} />
-        <WaterCard date={date} />
-        <NoteCard date={date} />
-      </div>
+      <ActivitiesCard date={date} onAdd={() => setActivityOpen(true)} />
+      <WaterCard date={date} />
+      <NoteCard date={date} />
 
       <AddFoodSheet open={addMeal !== null} onClose={() => setAddMeal(null)} date={date} meal={addMeal ?? 'desayuno'} />
       <FoodAmountSheet
@@ -168,16 +221,16 @@ export function DateNav({ date, setDate }: { date: string; setDate: (d: string) 
   return (
     <div className="date-nav">
       <button className="icon-btn" onClick={() => setDate(addDays(date, -1))} aria-label="Día anterior">
-        <IconChevronLeft size={20} />
+        <IconChevronLeft size={16} />
       </button>
-      <div className="date-btn">
-        <IconCalendar size={24} />
+      <label className="date-btn">
+        <IconCalendar size={18} />
         <span className="ellipsis">{dayLabel(date)}</span>
         {/* El input nativo abre el selector de fecha de iOS */}
         <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Elegir fecha" />
-      </div>
+      </label>
       <button className="icon-btn" onClick={() => setDate(addDays(date, 1))} aria-label="Día siguiente">
-        <IconChevronRight size={20} />
+        <IconChevronRight size={16} />
       </button>
     </div>
   );
@@ -187,38 +240,36 @@ function ActivitiesCard({ date, onAdd }: { date: string; onAdd: () => void }) {
   const day = useDay(date);
   const burned = burnedKcal(day);
   return (
-    <div className="card flat" style={{ marginTop: 18 }}>
-      <div className="row">
-        <div className="meal-avatar" style={{ background: 'var(--card)' }}>🏆</div>
-        <div className="grow" style={{ fontWeight: 600, fontSize: 19 }}>Actividades</div>
-        <div className="muted num">{fmt(burned)} kcal</div>
+    <>
+      <h2 className="section-title">Actividad</h2>
+      <div className="group inset-icons">
+        {day.activities.map((a) => (
+          <div key={a.id} className="cell">
+            <span className="emoji-tile" aria-hidden="true">{a.emoji ?? '🏃'}</span>
+            <span className="grow">
+              <span className="cell-title ellipsis">{a.name}</span>
+              <span className="cell-sub">{a.minutes ? `${a.minutes} min · ` : ''}{a.kcal} kcal</span>
+            </span>
+            <button
+              className="icon-btn"
+              onClick={() => {
+                actions.removeActivity(date, a.id);
+                toast('Actividad eliminada', '🗑️');
+              }}
+              aria-label={`Eliminar ${a.name}`}
+            >
+              <IconTrash size={16} color="var(--danger)" />
+            </button>
+          </div>
+        ))}
+        <Cell
+          icon={<span className="icon-tile" style={{ background: '#ff9500' }} aria-hidden="true">🏃</span>}
+          title={<span style={{ color: 'var(--accent)' }}>Añadir actividad</span>}
+          sub={burned ? `${fmt(burned)} kcal quemadas hoy` : 'Caminar, correr, gimnasio…'}
+          onClick={onAdd}
+        />
       </div>
-      {day.activities.length > 0 && (
-        <div className="list" style={{ marginTop: 8 }}>
-          {day.activities.map((a) => (
-            <div key={a.id} className="entry-row">
-              <span className="entry-emoji" style={{ background: 'var(--card)' }}>{a.emoji ?? '🏃'}</span>
-              <span className="grow">
-                <span className="ellipsis" style={{ display: 'block' }}>{a.name}</span>
-                <span className="small muted">{a.minutes ? `${a.minutes} min · ` : ''}{a.kcal} kcal</span>
-              </span>
-              <button
-                className="link small"
-                onClick={() => {
-                  actions.removeActivity(date, a.id);
-                  toast('Actividad eliminada', '🗑️');
-                }}
-              >
-                Quitar
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="center" style={{ marginTop: 14 }}>
-        <button className="btn" onClick={onAdd}>Añadir una actividad</button>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -237,54 +288,46 @@ function WaterCard({ date }: { date: string }) {
   };
 
   return (
-    <div className="card outline" style={{ marginTop: 16 }}>
-      <div className="row between">
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 19 }}>Agua {done && '✅'}</div>
-          <div className="muted small">Objetivo: {fmt(profile.waterGoalMl / 1000, 2)} l · vaso de {glass} ml</div>
+    <>
+      <h2 className="section-title">Agua</h2>
+      <section className="card" aria-label="Agua">
+        <div className="row between">
+          <div>
+            <div className="num" style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+              {fmt(day.waterMl / 1000, 2)} <span className="muted" style={{ fontSize: '1rem', fontWeight: 500 }}>/ {fmt(profile.waterGoalMl / 1000, 2)} l</span>
+            </div>
+            <div className="small muted">{done ? '¡Objetivo cumplido! 💧' : `Vasos de ${glass} ml`}</div>
+          </div>
+          <div className="row" style={{ gap: '0.4rem' }}>
+            <button className="icon-btn" onClick={() => actions.setWater(date, day.waterMl - glass)} aria-label="Quitar un vaso" disabled={!day.waterMl}>−</button>
+            <button className="add-btn" onClick={() => tap(full)} aria-label="Añadir un vaso"><IconPlus size={18} /></button>
+          </div>
         </div>
-        <div className="num" style={{ fontWeight: 600, fontSize: 20 }}>{fmt(day.waterMl / 1000, 2)} l</div>
-      </div>
-      <div className="water-grid" style={{ gridTemplateColumns: `repeat(${Math.min(count, 8)}, 1fr)` }}>
-        {Array.from({ length: Math.max(count, full + (full >= count ? 1 : 0)) }, (_, i) => (
-          <button key={i} className={`glass${i < full ? ' full' : ''}`} onClick={() => tap(i)} aria-label={`Vaso ${i + 1}`}>
-            {i < full ? '💧' : '+'}
-          </button>
-        ))}
-      </div>
-    </div>
+        <div className="water-grid" style={{ gridTemplateColumns: `repeat(${Math.min(count, 8)}, 1fr)` }} aria-hidden="true">
+          {Array.from({ length: Math.max(count, full + (full >= count ? 1 : 0)) }, (_, i) => (
+            <button key={i} className={`glass${i < full ? ' full' : ''}`} onClick={() => tap(i)} tabIndex={-1}>
+              {i < full ? '' : '+'}
+            </button>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
 
 function NoteCard({ date }: { date: string }) {
   const day = useDay(date);
-  const [editing, setEditing] = useState(false);
   return (
-    <div className="card outline" style={{ marginTop: 16 }}>
-      <div className="row">
-        <div className="meal-avatar" style={{ background: 'var(--fat-bg)' }}>✏️</div>
-        <div className="grow" style={{ fontWeight: 600, fontSize: 19 }}>Notas</div>
-      </div>
-      {editing ? (
-        <textarea
-          className="input"
-          style={{ marginTop: 12 }}
-          autoFocus
-          value={day.note}
-          placeholder="¿Cómo te has sentido hoy? ¿Hambre, energía, sueño…?"
-          onChange={(e) => actions.setNote(date, e.target.value)}
-          onBlur={() => setEditing(false)}
-        />
-      ) : (
-        <button className="muted" style={{ marginTop: 12, textAlign: 'left', width: '100%', whiteSpace: 'pre-wrap' }} onClick={() => setEditing(true)}>
-          {day.note || 'Añade una nota y describe tu día aquí en detalle.'}
-        </button>
-      )}
-      {!editing && (
-        <div className="center" style={{ marginTop: 14 }}>
-          <button className="btn" onClick={() => setEditing(true)}>{day.note ? 'Editar nota' : 'Añadir nota'}</button>
-        </div>
-      )}
-    </div>
+    <>
+      <h2 className="section-title">Notas</h2>
+      <label className="sr-only" htmlFor={`note-${date}`}>Nota del día</label>
+      <textarea
+        id={`note-${date}`}
+        className="input"
+        value={day.note}
+        placeholder="¿Cómo te has sentido hoy? Hambre, energía, sueño…"
+        onChange={(e) => actions.setNote(date, e.target.value)}
+      />
+    </>
   );
 }

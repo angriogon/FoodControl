@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import type { ActivityEntry, AppState, DayLog, Food, FoodEntry, Profile, WeightEntry } from '../types';
+import type { ActivityEntry, AppState, DayLog, Food, FoodEntry, Profile, Species, UiSettings, WeightEntry } from '../types';
 import { loadState, saveState } from '../lib/storage';
 import { defaultState } from './defaults';
 import { computeTargets, emptyDay } from '../lib/nutrition';
@@ -108,6 +108,15 @@ export const actions = {
   },
   pushRecent(f: Food) {
     update((s) => ({ ...s, recentFoods: [f, ...s.recentFoods.filter((x) => x.id !== f.id)].slice(0, 40) }));
+  },
+  setSpecies(species: Species, name?: string) {
+    update((s) => ({ ...s, pet: { ...s.pet, species, name: name ?? s.pet.name } }));
+  },
+  updateUi(ui: Partial<UiSettings>) {
+    update((s) => ({ ...s, ui: { ...s.ui, ...ui } }));
+  },
+  resetOutfit() {
+    update((s) => ({ ...s, pet: { ...s.pet, equipped: { ...s.pet.equipped, hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none' } } }));
   },
   renamePet(name: string) {
     update((s) => ({ ...s, pet: { ...s.pet, name } }));

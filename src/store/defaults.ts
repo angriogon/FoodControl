@@ -30,10 +30,12 @@ export function defaultState(): AppState {
     customFoods: [],
     recentFoods: [],
     pet: {
+      species: 'brote',
       name: 'Brotín',
-      equipped: { color: 'verde', hat: 'none', face: 'none', neck: 'none', scene: 'prado' },
+      equipped: { color: 'natural', hat: 'none', face: 'none', neck: 'none', body: 'none', hand: 'none', scene: 'prado' },
       purchased: []
     },
+    ui: { textSize: 'auto', theme: 'light', highContrast: false },
     achievements: {},
     gemsSpent: 0,
     createdAt: new Date().toISOString()
@@ -70,10 +72,16 @@ export function migrate(input: Partial<AppState>): AppState {
     pet: {
       ...base.pet,
       ...(input.pet ?? {}),
-      equipped: { ...base.pet.equipped, ...(input.pet?.equipped ?? {}) },
+      equipped: migrateEquipped({ ...base.pet.equipped, ...(input.pet?.equipped ?? {}) }),
       purchased: input.pet?.purchased ?? []
     },
+    ui: { ...base.ui, ...(input.ui ?? {}) },
     achievements: input.achievements ?? {},
     gemsSpent: Number(input.gemsSpent) || 0
   };
+}
+
+/** v1.0 usaba 'verde' como color base; ahora cada especie tiene su color 'natural'. */
+function migrateEquipped(e: AppState['pet']['equipped']): AppState['pet']['equipped'] {
+  return { ...e, color: e.color === 'verde' ? 'natural' : e.color };
 }

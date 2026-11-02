@@ -78,9 +78,9 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
   return (
     <>
       <Sheet open={open} onClose={onClose} full title="Añadir alimento">
-        <div className="segmented" style={{ marginBottom: 14 }}>
+        <div className="segmented" style={{ marginBottom: '0.82rem' }}>
           {MEALS.map((m) => (
-            <button key={m.id} className={meal === m.id ? 'active' : ''} onClick={() => setMeal(m.id)}>
+            <button key={m.id} aria-pressed={meal === m.id} onClick={() => setMeal(m.id)}>
               {m.label}
             </button>
           ))}
@@ -107,7 +107,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
           />
         </form>
 
-        <div className="chips" style={{ marginTop: 12 }}>
+        <div className="chips" style={{ marginTop: '0.71rem' }}>
           <button className="chip" onClick={() => setQuickOpen(true)}>⚡ Añadido rápido</button>
           <button className="chip" onClick={() => setCustomOpen(true)}>✏️ Crear alimento</button>
           <button className="chip" onClick={() => setBarcodeOpen(true)}>🏷️ Código de barras</button>
@@ -126,27 +126,27 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         </div>
 
         {!query.trim() && (
-          <div className="segmented" style={{ margin: '16px 0 4px' }}>
-            <button className={tab === 'recientes' ? 'active' : ''} onClick={() => setTab('recientes')}>Recientes</button>
-            <button className={tab === 'mios' ? 'active' : ''} onClick={() => setTab('mios')}>Mis alimentos</button>
-            <button className={tab === 'todos' ? 'active' : ''} onClick={() => setTab('todos')}>Base</button>
+          <div className="segmented" style={{ margin: '0.94rem 0 0.24rem' }}>
+            <button aria-pressed={tab === 'recientes'} onClick={() => setTab('recientes')}>Recientes</button>
+            <button aria-pressed={tab === 'mios'} onClick={() => setTab('mios')}>Mis alimentos</button>
+            <button aria-pressed={tab === 'todos'} onClick={() => setTab('todos')}>Base</button>
           </div>
         )}
 
-        <div className="list" style={{ marginTop: 8 }}>
+        <div className="group" style={{ marginTop: '0.47rem' }}>
           {list.map((f) => (
             <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />
           ))}
         </div>
 
         {!query.trim() && !list.length && (
-          <p className="muted center" style={{ padding: '30px 10px' }}>
+          <p className="muted center" style={{ padding: '1.76rem 0.59rem' }}>
             {tab === 'recientes' ? 'Aquí aparecerán los alimentos que vayas usando.' : 'Aún no has creado alimentos propios.'}
           </p>
         )}
 
         {query.trim().length >= 2 && (
-          <div style={{ marginTop: 18 }}>
+          <div style={{ marginTop: '1.06rem' }}>
             {!online.done && (
               <button className="btn secondary block" onClick={searchOnline} disabled={online.loading}>
                 {online.loading ? 'Buscando…' : `🛒 Buscar “${query.trim()}” en productos de supermercado`}
@@ -155,9 +155,9 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
             {online.error && <p className="muted small center">{online.error}</p>}
             {online.done && (
               <>
-                <div className="field-label" style={{ margin: '6px 0 4px' }}>Open Food Facts</div>
+                <div className="field-label" style={{ margin: '0.35rem 0 0.24rem' }}>Open Food Facts</div>
                 {online.results.length ? (
-                  <div className="list">
+                  <div className="group">
                     {online.results.map((f) => <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />)}
                   </div>
                 ) : (
@@ -166,7 +166,7 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
               </>
             )}
             {!localResults.length && !online.done && !online.loading && (
-              <p className="muted small center" style={{ marginTop: 10 }}>No está en la base local.</p>
+              <p className="muted small center" style={{ marginTop: '0.59rem' }}>No está en la base local.</p>
             )}
           </div>
         )}
@@ -218,17 +218,20 @@ export function FoodRow({ food, onClick, right }: { food: Food; onClick: () => v
   const s = food.serving;
   const sub = s ? `${s.label} · ${Math.round((food.per100.kcal * s.grams) / 100)} kcal` : `100 ${food.unit} · ${food.per100.kcal} kcal`;
   return (
-    <button className="entry-row" onClick={onClick}>
-      <span className="entry-emoji">{food.emoji ?? '🍽️'}</span>
-      <span className="grow">
-        <span className="ellipsis" style={{ display: 'block', fontWeight: 500 }}>{food.name}</span>
-        <span className="small muted ellipsis" style={{ display: 'block' }}>
-          {food.brand ? `${food.brand} · ` : ''}{sub}
+    <div className="cell tappable" style={{ padding: 0 }}>
+      <button className="cell" style={{ flex: 1 }} onClick={onClick} aria-label={`${food.name}${food.brand ? `, ${food.brand}` : ''}. ${sub}`}>
+        <span className="emoji-tile" aria-hidden="true">{food.emoji ?? '🍽️'}</span>
+        <span className="grow">
+          <span className="cell-title ellipsis">{food.name}</span>
+          <span className="cell-sub ellipsis">
+            {food.brand ? `${food.brand} · ` : ''}{sub}
+          </span>
         </span>
-      </span>
-      <GradeBadge grade={foodGrade(food)} />
-      {right ?? <span className="icon-btn" style={{ width: 34, height: 34 }}><IconPlus size={16} /></span>}
-    </button>
+        <GradeBadge grade={foodGrade(food)} />
+        {!right && <span className="add-btn soft" aria-hidden="true"><IconPlus size={14} /></span>}
+      </button>
+      {right && <span style={{ paddingRight: '1rem' }}>{right}</span>}
+    </div>
   );
 }
 
@@ -291,12 +294,12 @@ export function FoodAmountSheet({
     <Sheet
       open={!!food}
       onClose={onClose}
-      title={<span className="clamp-2" style={{ fontSize: 22 }}>{food.emoji} {food.name}</span>}
+      title={food.name}
       footer={
         <div className="row">
           {onDelete && (
-            <button className="icon-btn" style={{ width: 50, height: 50 }} onClick={onDelete} aria-label="Eliminar">
-              <IconTrash size={22} color="var(--bad)" />
+            <button className="btn gray" style={{ padding: '0 1rem' }} onClick={onDelete} aria-label="Eliminar">
+              <IconTrash size={22} color="var(--danger)" />
             </button>
           )}
           <button className="btn block grow" onClick={save} disabled={grams <= 0}>
@@ -305,12 +308,13 @@ export function FoodAmountSheet({
         </div>
       }
     >
-      {food.brand && <div className="muted" style={{ marginTop: -6, marginBottom: 10 }}>{food.brand}</div>}
+      <div className="center" style={{ fontSize: '2.4rem' }} aria-hidden="true">{food.emoji ?? '🍽️'}</div>
+      {food.brand && <div className="muted center" style={{ marginBottom: '0.59rem' }}>{food.brand}</div>}
 
-      <div className="card center" style={{ marginBottom: 16 }}>
-        <div className="num" style={{ fontSize: 44, fontWeight: 700 }}>{fmt(n.kcal)}</div>
+      <div className="card center" style={{ marginBottom: '0.94rem' }}>
+        <div className="num" style={{ fontSize: '2.6rem', fontWeight: 700 }}>{fmt(n.kcal)}</div>
         <div className="muted">kcal · {fmt(grams)} {food.unit}</div>
-        <div className="grid-3" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 16 }}>
+        <div className="grid-3" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: '0.94rem' }}>
           <MiniMacro label="Prot." value={n.protein} color="var(--protein)" />
           <MiniMacro label="Carbos" value={n.carbs} color="var(--carbs)" />
           <MiniMacro label="Grasa" value={n.fat} color="var(--fat)" />
@@ -319,11 +323,11 @@ export function FoodAmountSheet({
       </div>
 
       {food.serving && (
-        <div className="segmented" style={{ marginBottom: 12 }}>
-          <button className={mode === 'serving' ? 'active' : ''} onClick={() => { setMode('serving'); setAmount(1); }}>
+        <div className="segmented" style={{ marginBottom: '0.71rem' }}>
+          <button aria-pressed={mode === 'serving'} onClick={() => { setMode('serving'); setAmount(1); }}>
             Raciones
           </button>
-          <button className={mode === 'grams' ? 'active' : ''} onClick={() => { setMode('grams'); setAmount(food.serving!.grams); }}>
+          <button aria-pressed={mode === 'grams'} onClick={() => { setMode('grams'); setAmount(food.serving!.grams); }}>
             {food.unit === 'ml' ? 'Mililitros' : 'Gramos'}
           </button>
         </div>
@@ -333,7 +337,7 @@ export function FoodAmountSheet({
         <label>{mode === 'serving' ? `Raciones (${food.serving!.label} = ${food.serving!.grams} ${food.unit})` : `Cantidad en ${food.unit}`}</label>
         <NumberInput value={amount} onChange={setAmount} suffix={mode === 'serving' ? 'rac.' : food.unit} />
       </div>
-      <div className="chips" style={{ marginTop: 10 }}>
+      <div className="chips" style={{ marginTop: '0.59rem' }}>
         {presets.map((p) => (
           <button key={p} className={`chip${toNum(amount) === p ? ' active' : ''}`} onClick={() => setAmount(p)}>
             {mode === 'serving' ? `${String(p).replace('.', ',')} rac.` : `${p} ${food.unit}`}
@@ -341,20 +345,20 @@ export function FoodAmountSheet({
         ))}
       </div>
 
-      <div className="field" style={{ marginTop: 18 }}>
+      <div className="field" style={{ marginTop: '1.06rem' }}>
         <label>Comida</label>
         <div className="segmented">
           {MEALS.map((m) => (
-            <button key={m.id} className={meal === m.id ? 'active' : ''} onClick={() => setMeal(m.id)}>{m.label}</button>
+            <button key={m.id} aria-pressed={meal === m.id} onClick={() => setMeal(m.id)}>{m.label}</button>
           ))}
         </div>
       </div>
 
-      <div className="card flat small" style={{ marginTop: 18 }}>
+      <div className="card small" style={{ marginTop: '1.06rem' }}>
         <div className="row between"><span className="muted">Azúcares</span><b className="num">{fmt(n.sugar ?? 0, 1)} g</b></div>
-        <div className="row between" style={{ marginTop: 6 }}><span className="muted">Grasa saturada</span><b className="num">{fmt(n.satFat ?? 0, 1)} g</b></div>
-        {!!n.salt && <div className="row between" style={{ marginTop: 6 }}><span className="muted">Sal</span><b className="num">{fmt(n.salt, 2)} g</b></div>}
-        <div className="row between" style={{ marginTop: 6 }}>
+        <div className="row between" style={{ marginTop: '0.35rem' }}><span className="muted">Grasa saturada</span><b className="num">{fmt(n.satFat ?? 0, 1)} g</b></div>
+        {!!n.salt && <div className="row between" style={{ marginTop: '0.35rem' }}><span className="muted">Sal</span><b className="num">{fmt(n.salt, 2)} g</b></div>}
+        <div className="row between" style={{ marginTop: '0.35rem' }}>
           <span className="muted">Calidad {food.source === 'off' && food.grade ? '(Nutri-Score oficial)' : '(estimada)'}</span>
           <GradeBadge grade={foodGrade(food)} />
         </div>
@@ -366,7 +370,7 @@ export function FoodAmountSheet({
 function MiniMacro({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div>
-      <div style={{ width: 10, height: 10, borderRadius: 99, background: color, margin: '0 auto 4px' }} />
+      <div style={{ width: 10, height: 10, borderRadius: 99, background: color, margin: '0 auto 0.24rem' }} />
       <div className="num" style={{ fontWeight: 600 }}>{fmt(value, 1)} g</div>
       <div className="tiny muted">{label}</div>
     </div>
@@ -442,15 +446,15 @@ export function QuickAddSheet({
       footer={
         <div className="row">
           {onDelete && (
-            <button className="icon-btn" style={{ width: 50, height: 50 }} onClick={onDelete} aria-label="Eliminar">
-              <IconTrash size={22} color="var(--bad)" />
+            <button className="btn gray" style={{ padding: '0 1rem' }} onClick={onDelete} aria-label="Eliminar">
+              <IconTrash size={22} color="var(--danger)" />
             </button>
           )}
           <button className="btn block grow" disabled={kcal <= 0} onClick={save}>{entry ? 'Guardar' : 'Añadir'}</button>
         </div>
       }
     >
-      <p className="muted small" style={{ marginTop: 0 }}>
+      <p className="muted small" style={{ marginTop: '0.0rem' }}>
         Para cuando comes fuera o no sabes el alimento exacto. Solo las kcal son obligatorias.
       </p>
       <div className="stack">
@@ -472,7 +476,7 @@ export function QuickAddSheet({
           <label>Comida</label>
           <div className="segmented">
             {MEALS.map((m) => (
-              <button key={m.id} className={meal === m.id ? 'active' : ''} onClick={() => setMeal(m.id)}>{m.label}</button>
+              <button key={m.id} aria-pressed={meal === m.id} onClick={() => setMeal(m.id)}>{m.label}</button>
             ))}
           </div>
         </div>
@@ -558,16 +562,16 @@ export function CustomFoodSheet({ open, onClose, onSaved, initialName = '', edit
       <div className="stack">
         <div className="chips">
           {EMOJIS.map((e) => (
-            <button key={e} className={`chip${emoji === e ? ' active' : ''}`} style={{ fontSize: 20, padding: '6px 10px' }} onClick={() => setEmoji(e)}>{e}</button>
+            <button key={e} className={`chip${emoji === e ? ' active' : ''}`} style={{ fontSize: '1.2rem' }} aria-label={`Icono ${e}`} aria-pressed={emoji === e} onClick={() => setEmoji(e)}>{e}</button>
           ))}
         </div>
         <div className="field"><label>Nombre</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Bowl de quinoa casero" /></div>
         <div className="field"><label>Marca (opcional)</label><input className="input" value={brand} onChange={(e) => setBrand(e.target.value)} /></div>
         <div className="segmented">
-          <button className={unit === 'g' ? 'active' : ''} onClick={() => setUnit('g')}>Por 100 g</button>
-          <button className={unit === 'ml' ? 'active' : ''} onClick={() => setUnit('ml')}>Por 100 ml</button>
+          <button aria-pressed={unit === 'g'} onClick={() => setUnit('g')}>Por 100 g</button>
+          <button aria-pressed={unit === 'ml'} onClick={() => setUnit('ml')}>Por 100 ml</button>
         </div>
-        <p className="muted small" style={{ margin: 0 }}>Copia los valores de la etiqueta nutricional (columna “por 100 {unit}”).</p>
+        <p className="muted small" style={{ margin: '0.0rem' }}>Copia los valores de la etiqueta nutricional (columna “por 100 {unit}”).</p>
         {field('kcal', 'Calorías', 'kcal')}
         <div className="grid-2">
           {field('protein', 'Proteínas')}
@@ -577,7 +581,7 @@ export function CustomFoodSheet({ open, onClose, onSaved, initialName = '', edit
           {field('sugar', 'de los cuales azúcares')}
           {field('satFat', 'Grasa saturada')}
         </div>
-        <div className="field-label" style={{ marginTop: 6 }}>Ración habitual (opcional)</div>
+        <div className="field-label" style={{ marginTop: '0.35rem' }}>Ración habitual (opcional)</div>
         <div className="grid-2">
           <input className="input" value={servingLabel} onChange={(e) => setServingLabel(e.target.value)} placeholder="1 bol" />
           <NumberInput value={servingGrams} onChange={setServingGrams} suffix={unit} />
@@ -616,10 +620,10 @@ function BarcodeSheet({ open, onClose, onFound }: { open: boolean; onClose: () =
   return (
     <Sheet open={open} onClose={onClose} title="Código de barras"
       footer={<button className="btn block" disabled={code.replace(/\D/g, '').length < 8 || status === 'loading'} onClick={search}>{status === 'loading' ? 'Buscando…' : 'Buscar producto'}</button>}>
-      <p className="muted small" style={{ marginTop: 0 }}>Escribe los números que aparecen bajo el código de barras del envase.</p>
+      <p className="muted small" style={{ marginTop: '0.0rem' }}>Escribe los números que aparecen bajo el código de barras del envase.</p>
       <input className="input num" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="8410000000000" autoFocus />
       {status === 'notfound' && <p className="small" style={{ color: 'var(--warn)' }}>No encontrado en Open Food Facts. Puedes crearlo con “Crear alimento”.</p>}
-      {status === 'error' && <p className="small" style={{ color: 'var(--bad)' }}>Error de conexión. Revisa tu conexión a internet.</p>}
+      {status === 'error' && <p className="small" style={{ color: 'var(--danger)' }}>Error de conexión. Revisa tu conexión a internet.</p>}
     </Sheet>
   );
 }
