@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import type { FoodEntry, MealId } from '../types';
+import { Fragment, useState } from 'react';
+import type { FoodEntry, MealId, Portion } from '../types';
 import { actions, currentWeight, useAppState, useDay, useSelectedDate, useTargets } from '../store/store';
 import { MACROS, MEALS, burnedKcal, dayTotals, fmt, mealTotals } from '../lib/nutrition';
 import { addDays, dayLabel, longDate, todayKey } from '../lib/dates';
 import { useGameStatus } from '../lib/hooks';
 import { Ring } from '../components/Ring';
 import { Cell, GradeBadge, ProgressBar } from '../components/common';
-import { Flame, Gem, IconCalendar, IconChevronLeft, IconChevronRight, IconPlus, IconSparkles, IconTrash } from '../components/Icons';
+import { Flame, Gem, IconBook, IconCalendar, IconChevronLeft, IconChevronRight, IconPlus, IconSparkles, IconTrash } from '../components/Icons';
 import { AddFoodSheet, FoodAmountSheet, QuickAddSheet, foodFromEntry } from './FoodSheets';
 import { ActivitySheet } from './ActivitySheet';
 import { AnalysisSheet } from './Analysis';
+import { MenuEditorSheet } from './RecipeSheets';
+import { entryToPortion } from '../lib/recipes';
 import { toast } from '../components/Toast';
 
 export function Diary() {
@@ -22,6 +24,7 @@ export function Diary() {
   const [editing, setEditing] = useState<FoodEntry | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const [analysis, setAnalysis] = useState<{ meal?: MealId } | null>(null);
+  const [saveMenu, setSaveMenu] = useState<{ meal: MealId; items: Portion[] } | null>(null);
   // Comidas plegadas por defecto: solo se despliega la que toques
   const [openMeals, setOpenMeals] = useState<Set<MealId>>(new Set());
 
@@ -149,8 +152,24 @@ export function Diary() {
             </div>
             {open && (
               <div className="meal-body" id={bodyId}>
-                {entries.map((e) => (
-                  <button key={e.id} className="cell" onClick={() => setEditing(e)}
+                {entries.map((e, idx) => (
+                  <Fragment key={e.id}>
+                  {e.groupId && e.groupId !== entries[idx - 1]?.groupId && (
+                    <div className="group-label">
+                      <span aria-hidden="true">📋</span>
+                      <span className="grow ellipsis">{e.groupName ?? 'Menú'}</span>
+                      <button className="link small" style={{ minHeight: '2rem', textTransform: 'none', letterSpacing: 0 }}
+                        onClick={() => {
+                          const group = entries.filter((x) => x.groupId === e.groupId);
+                          actions.removeEntries(date, group.map((x) => x.id));
+                          toast(`${e.groupName ?? 'Menú'} quitado`, '🗑️', undefined, { label: 'Deshacer', run: () => actions.addEntries(date, group) });
+                        }}
+                        aria-label={`Quitar el menú ${e.groupName ?? ''} completo`}>
+                        Quitar
+                      </button>
+                    </div>
+                  )}
+                  <button className={`cell${e.groupId ? ' indent' : ''}`} onClick={() => setEditing(e)}
                     aria-label={`${e.name}, ${fmt(e.nutrients.kcal)} kilocalorías. Editar`}>
                     <span className="emoji-tile" aria-hidden="true">{e.emoji ?? '🍽️'}</span>
                     <span className="grow">
@@ -162,7 +181,15 @@ export function Diary() {
                     <GradeBadge grade={e.grade} />
                     <span className="num bold" style={{ minWidth: '2.6rem', textAlign: 'right' }}>{fmt(e.nutrients.kcal)}</span>
                   </button>
+                  </Fragment>
                 ))}
+                <Cell
+                  className="cell-sep"
+                  icon={<IconBook size={18} color="var(--accent)" />}
+                  title={<span style={{ color: 'var(--accent)' }}>Guardar como menú</span>}
+                  sub="Para añadirlo entero de un toque otro día"
+                  onClick={() => setSaveMenu({ meal: m.id, items: entries.map(entryToPortion) })}
+                />
                 <Cell
                   className="cell-sep"
                   icon={<IconSparkles size={18} color="var(--accent)" />}
@@ -212,6 +239,13 @@ export function Diary() {
         }}
       />
       <ActivitySheet open={activityOpen} onClose={() => setActivityOpen(false)} date={date} weightKg={currentWeight(state)} />
+      <MenuEditorSheet
+        open={!!saveMenu}
+        initialItems={saveMenu?.items}
+        initialMeal={saveMenu?.meal}
+        initialName={saveMenu ? `Mi ${MEALS.find((x) => x.id === saveMenu.meal)!.label.toLowerCase()}` : ''}
+        onClose={() => setSaveMenu(null)}
+      />
       <AnalysisSheet open={!!analysis} meal={analysis?.meal} date={date} onClose={() => setAnalysis(null)} />
     </div>
   );

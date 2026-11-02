@@ -1,5 +1,5 @@
 import type {
-  ActivityEntry, AppState, Equipped, Food, FoodEntry, MealId, Nutrients, Profile, QualityGrade, Species, WeightEntry
+  ActivityEntry, AppState, Equipped, Food, FoodEntry, MealId, Menu, Nutrients, Portion, Profile, QualityGrade, Recipe, Species, WeightEntry
 } from '../types';
 import { PET_ITEMS } from '../lib/pet';
 
@@ -32,6 +32,8 @@ export function defaultState(): AppState {
     weights: [],
     customFoods: [],
     recentFoods: [],
+    recipes: [],
+    menus: [],
     pet: {
       species: 'brote',
       name: 'Brotín',
@@ -95,7 +97,7 @@ function food(v: unknown): Food | null {
     per100: nutrients(v.per100),
     serving,
     grade: grade(v.grade),
-    source: oneOf(v.source, ['base', 'custom', 'off'] as const, 'custom'),
+    source: oneOf(v.source, ['base', 'custom', 'off', 'recipe'] as const, 'custom'),
     emoji: typeof v.emoji === 'string' ? str(v.emoji, '', 16) : undefined
   };
 }
@@ -112,7 +114,52 @@ function entry(v: unknown): FoodEntry | null {
     nutrients: nutrients(v.nutrients),
     grade: grade(v.grade),
     emoji: typeof v.emoji === 'string' ? str(v.emoji, '', 16) : undefined,
+    createdAt: str(v.createdAt, new Date().toISOString(), 40),
+    groupId: typeof v.groupId === 'string' ? str(v.groupId, '', 120) : undefined,
+    groupName: typeof v.groupName === 'string' ? str(v.groupName, '', 80) : undefined
+  };
+}
+
+function portion(v: unknown): Portion | null {
+  if (!isObj(v)) return null;
+  const f = food(v.food);
+  const amount = num(v.amount, NaN, 0.1, 100000);
+  return f && Number.isFinite(amount) ? { food: f, amount } : null;
+}
+
+function tags(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((t): t is string => typeof t === 'string').slice(0, 10).map((t) => t.slice(0, 24)) : [];
+}
+
+function recipe(v: unknown): Recipe | null {
+  if (!isObj(v) || typeof v.id !== 'string' || typeof v.name !== 'string') return null;
+  const ingredients = list(v.ingredients, portion, 60);
+  if (!ingredients.length) return null;
+  const cooked = num(v.cookedWeightG, 0, 0, 50000);
+  return {
+    id: str(v.id, '', 120),
+    name: str(v.name, 'Plato', 80),
+    emoji: str(v.emoji, '🍲', 16),
+    servings: num(v.servings, 1, 0.5, 100),
+    ingredients,
+    cookedWeightG: cooked > 0 ? cooked : undefined,
+    tags: tags(v.tags),
     createdAt: str(v.createdAt, new Date().toISOString(), 40)
+  };
+}
+
+function menu(v: unknown): Menu | null {
+  if (!isObj(v) || typeof v.id !== 'string' || typeof v.name !== 'string') return null;
+  const items = list(v.items, portion, 40);
+  if (!items.length) return null;
+  return {
+    id: str(v.id, '', 120),
+    name: str(v.name, 'Menú', 80),
+    emoji: str(v.emoji, '🍽️', 16),
+    meal: oneOf(v.meal, MEALS, 'comida'),
+    items,
+    createdAt: str(v.createdAt, new Date().toISOString(), 40),
+    uses: Math.round(num(v.uses, 0, 0, 1e6))
   };
 }
 
@@ -228,6 +275,8 @@ export function migrate(input: unknown): AppState {
     weights,
     customFoods: list(o.customFoods, food, 2000),
     recentFoods: list(o.recentFoods, food, 40),
+    recipes: list(o.recipes, recipe, 1000),
+    menus: list(o.menus, menu, 500),
     pet: {
       species: oneOf(pet.species, SPECIES_IDS, base.pet.species),
       name: str(pet.name, base.pet.name, 20) || base.pet.name,

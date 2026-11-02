@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import type { ActivityEntry, AppState, DayLog, Food, FoodEntry, Profile, Species, UiSettings, WeightEntry } from '../types';
+import type { ActivityEntry, AppState, DayLog, Food, FoodEntry, Menu, Profile, Recipe, Species, UiSettings, WeightEntry } from '../types';
 import { loadState, saveState } from '../lib/storage';
 import { defaultState } from './defaults';
 import { computeTargets, emptyDay } from '../lib/nutrition';
@@ -56,6 +56,30 @@ export function uid(): string {
 export const actions = {
   addEntry(date: string, entry: FoodEntry) {
     updateDay(date, (d) => ({ ...d, entries: [...d.entries, entry] }));
+  },
+  /** Añade varios alimentos de golpe (menús, sugerencias). Devuelve los ids para poder deshacer. */
+  addEntries(date: string, entries: FoodEntry[]) {
+    updateDay(date, (d) => ({ ...d, entries: [...d.entries, ...entries] }));
+    return entries.map((e) => e.id);
+  },
+  removeEntries(date: string, ids: string[]) {
+    const set = new Set(ids);
+    updateDay(date, (d) => ({ ...d, entries: d.entries.filter((e) => !set.has(e.id)) }));
+  },
+  saveRecipe(r: Recipe) {
+    update((s) => ({ ...s, recipes: [r, ...s.recipes.filter((x) => x.id !== r.id)] }));
+  },
+  deleteRecipe(id: string) {
+    update((s) => ({ ...s, recipes: s.recipes.filter((x) => x.id !== id) }));
+  },
+  saveMenu(m: Menu) {
+    update((s) => ({ ...s, menus: [m, ...s.menus.filter((x) => x.id !== m.id)] }));
+  },
+  deleteMenu(id: string) {
+    update((s) => ({ ...s, menus: s.menus.filter((x) => x.id !== id) }));
+  },
+  markMenuUsed(id: string) {
+    update((s) => ({ ...s, menus: s.menus.map((m) => (m.id === id ? { ...m, uses: m.uses + 1 } : m)) }));
   },
   updateEntry(date: string, entry: FoodEntry) {
     updateDay(date, (d) => ({ ...d, entries: d.entries.map((e) => (e.id === entry.id ? entry : e)) }));

@@ -1,9 +1,11 @@
 import type { Food, QualityGrade } from '../types';
+import { EXTRA_ROWS } from './foods-extra';
 
 // Valores aproximados por 100 g (o 100 ml), basados en tablas de composición
 // habituales (BEDCA / USDA). Suficientemente precisos para un diario personal.
 // Formato compacto: [id, nombre, emoji, kcal, prot, carbs, grasa, fibra, azúcar, grasaSat, ración, gramosRación, grado, unidad]
-type Row = [string, string, string, number, number, number, number, number, number, number, string?, number?, QualityGrade?, ('g' | 'ml')?];
+export type FoodRow = [string, string, string, number, number, number, number, number, number, number, string?, number?, QualityGrade?, ('g' | 'ml')?];
+type Row = FoodRow;
 
 const ROWS: Row[] = [
   // Huevos, carnes y pescados
@@ -131,7 +133,7 @@ const ROWS: Row[] = [
   ['batido-proteina', 'Batido de proteína (whey con agua)', '🥤', 120, 24, 3, 1.5, 0, 2, 0.8, '1 cacito', 30, 'A']
 ];
 
-export const BASE_FOODS: Food[] = ROWS.map(([id, name, emoji, kcal, protein, carbs, fat, fiber, sugar, satFat, servingLabel, servingGrams, grade, unit]) => ({
+export const BASE_FOODS: Food[] = [...ROWS, ...EXTRA_ROWS].map(([id, name, emoji, kcal, protein, carbs, fat, fiber, sugar, satFat, servingLabel, servingGrams, grade, unit]) => ({
   id: `base:${id}`,
   name,
   emoji,

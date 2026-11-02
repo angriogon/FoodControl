@@ -1,5 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { MealId } from '../types';
+import { actions, uid } from '../store/store';
+import { toast } from '../components/Toast';
+import { IconPlus } from '../components/Icons';
+import { mealForNow, suggestionsFor } from '../lib/suggestions';
+import { portionToEntry } from '../lib/recipes';
+import { MEALS } from '../lib/nutrition';
 import type { Tab } from '../components/TabBar';
 import { Mascot } from '../components/Mascot';
 import { Cell, MacroRings } from '../components/common';
@@ -27,6 +33,9 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
   const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const totals = dayTotals(day);
+  const nowMeal = mealForNow();
+  const nowMealLabel = MEALS.find((m) => m.id === nowMeal)!.label;
+  const suggestions = useMemo(() => suggestionsFor(state, nowMeal, today, 2), [state, nowMeal, today]);
   const has = (m: MealId) => day.entries.some((e) => e.meal === m);
   const lastWeight = state.weights[state.weights.length - 1];
   const weighedRecently = !!lastWeight && diffDays(today, lastWeight.date) < 7;
@@ -99,6 +108,32 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
         </button>
       )}
 
+      {suggestions.length > 0 && (
+        <section aria-label="Sugerencias">
+          <h2 className="section-title">¿Lo de siempre?</h2>
+          {suggestions.map((sg) => (
+            <button key={sg.key} className="suggest" style={{ width: '100%', textAlign: 'left' }}
+              onClick={() => {
+                const now = new Date().toISOString();
+                const groupId = uid();
+                const ids = actions.addEntries(today, sg.portions.map((p) => portionToEntry(p, nowMeal, 1, uid(), now, { groupId, groupName: sg.groupName })));
+                if (sg.menuId) actions.markMenuUsed(sg.menuId);
+                toast(`${sg.title} añadido a ${nowMealLabel}`, sg.emoji, undefined, { label: 'Deshacer', run: () => actions.removeEntries(today, ids) });
+              }}
+              aria-label={`Añadir ${sg.title} a ${nowMealLabel}: ${sg.subtitle}. ${sg.kcal} kilocalorías`}>
+              <span style={{ fontSize: '1.4rem' }} aria-hidden="true">{sg.emoji}</span>
+              <span className="grow">
+                <span className="bold" style={{ display: 'block' }}>{sg.title}</span>
+                <span className="small muted ellipsis" style={{ display: 'block' }}>{sg.subtitle}</span>
+              </span>
+              <span className="num small bold">{sg.kcal} kcal</span>
+              <span className="add-btn" aria-hidden="true"><IconPlus size={16} /></span>
+            </button>
+          ))}
+          <p className="section-footer">Se añade a {nowMealLabel.toLowerCase()} de hoy. Puedes deshacerlo desde el aviso.</p>
+        </section>
+      )}
+
       <div className="row between" style={{ margin: '1.8rem 0 0.7rem' }}>
         <h2 className="section-title" style={{ margin: 0 }}>Hoy</h2>
         <span className="small muted num" aria-label={`${doneCount} de ${tasks.length} tareas completadas`}>{doneCount} de {tasks.length}</span>
@@ -135,6 +170,12 @@ export function Home({ go, openData }: { go: (t: Tab) => void; openData: () => v
           title="Mi peso"
           sub={lastWeight ? `${fmt(lastWeight.kg, 1)} kg · ${lastWeight.date === today ? 'hoy' : `hace ${diffDays(today, lastWeight.date)} días`}` : 'Sin registros todavía'}
           onClick={() => setWeightOpen(true)}
+        />
+        <Cell
+          icon={<span className="icon-tile" style={{ background: '#af52de' }}>📖</span>}
+          title="Mi recetario"
+          sub={`${state.menus.length} menús · ${state.recipes.length} platos propios`}
+          onClick={() => go('recetas')}
         />
         <Cell
           icon={<span className="icon-tile" style={{ background: '#ff6482' }}>🥗</span>}

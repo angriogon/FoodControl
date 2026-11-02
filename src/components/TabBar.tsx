@@ -1,16 +1,18 @@
-import { IconDiary, IconHome, IconSprout, IconTrophy, IconUser } from './Icons';
+import { IconBook, IconDiary, IconHome, IconSprout, IconUser } from './Icons';
 
-export type Tab = 'inicio' | 'diario' | 'logros' | 'mascota' | 'perfil';
+export type Tab = 'inicio' | 'diario' | 'recetas' | 'mascota' | 'logros' | 'perfil';
 
+// 'logros' vive dentro de la pestaña Mascota (los logros desbloquean su ropa)
 const TABS: { id: Tab; label: string; Icon: typeof IconHome }[] = [
   { id: 'inicio', label: 'Inicio', Icon: IconHome },
   { id: 'diario', label: 'Diario', Icon: IconDiary },
-  { id: 'logros', label: 'Logros', Icon: IconTrophy },
+  { id: 'recetas', label: 'Recetario', Icon: IconBook },
   { id: 'mascota', label: 'Mascota', Icon: IconSprout },
   { id: 'perfil', label: 'Perfil', Icon: IconUser }
 ];
 
 export function TabBar({ tab, onChange, badges }: { tab: Tab; onChange: (t: Tab) => void; badges?: Partial<Record<Tab, number>> }) {
+  const active = tab === 'logros' ? 'mascota' : tab;
   return (
     <nav className="tabbar" aria-label="Secciones">
       <div className="tabbar-inner">
@@ -21,13 +23,13 @@ export function TabBar({ tab, onChange, badges }: { tab: Tab; onChange: (t: Tab)
               key={id}
               className="tab"
               onClick={() => {
-                if (tab === id) window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (active === id) window.scrollTo({ top: 0, behavior: 'smooth' });
                 onChange(id);
               }}
-              aria-current={tab === id ? 'page' : undefined}
+              aria-current={active === id ? 'page' : undefined}
               aria-label={badge ? `${label}, ${badge} novedad${badge === 1 ? '' : 'es'}` : label}
             >
-              <Icon filled={tab === id} />
+              <Icon filled={active === id} />
               <span aria-hidden="true">{label}</span>
               {!!badge && <span className="badge" aria-hidden="true">{badge}</span>}
             </button>

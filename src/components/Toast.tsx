@@ -1,9 +1,15 @@
 import { useSyncExternalStore } from 'react';
 
+interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
 interface ToastItem {
   id: number;
   text: string;
   icon?: string;
+  action?: ToastAction;
 }
 
 let toasts: ToastItem[] = [];
@@ -11,17 +17,22 @@ let seq = 0;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
 
-export function toast(text: string, icon?: string, ms = 2400) {
+function dismiss(id: number) {
+  toasts = toasts.filter((t) => t.id !== id);
+  emit();
+}
+
+/**
+ * Aviso breve. Con `action` se muestra un botón (p. ej. “Deshacer”) y el
+ * aviso dura más para que dé tiempo a pulsarlo.
+ */
+export function toast(text: string, icon?: string, ms?: number, action?: ToastAction) {
   const id = ++seq;
   // Máximo 2 a la vez: en móvil una pila de avisos tapa el contenido
-  toasts = [...toasts.slice(-1), { id, text, icon }];
+  toasts = [...toasts.slice(-1), { id, text, icon, action }];
   emit();
-  // Vibración corta en Android; iOS Safari la ignora sin error
   navigator.vibrate?.(15);
-  setTimeout(() => {
-    toasts = toasts.filter((t) => t.id !== id);
-    emit();
-  }, ms);
+  setTimeout(() => dismiss(id), ms ?? (action ? 5000 : 2400));
 }
 
 export function Toasts() {
@@ -35,9 +46,20 @@ export function Toasts() {
   return (
     <div className="toast-wrap" aria-live="polite">
       {list.map((t) => (
-        <div key={t.id} className="toast">
-          {t.icon && <span style={{ fontSize: 20 }}>{t.icon}</span>}
-          {t.text}
+        <div key={t.id} className="toast" role="status">
+          {t.icon && <span style={{ fontSize: '1.15rem' }} aria-hidden="true">{t.icon}</span>}
+          <span>{t.text}</span>
+          {t.action && (
+            <button
+              className="toast-action"
+              onClick={() => {
+                t.action!.run();
+                dismiss(t.id);
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

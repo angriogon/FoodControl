@@ -1,116 +1,102 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Food, FoodEntry, MealId, Nutrients } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import type { Food, FoodEntry, MealId, Menu, Nutrients, Portion } from '../types';
 import { Sheet } from '../components/Sheet';
-import { GradeBadge, NumberInput, toNum } from '../components/common';
-import { IconCopy, IconPlus, IconSearch, IconTrash } from '../components/Icons';
+import { GradeBadge, NumberInput, Segmented, toNum } from '../components/common';
+import { IconCopy, IconPlus, IconSearch, IconSliders, IconTrash } from '../components/Icons';
 import { toast } from '../components/Toast';
+import { BarcodeScanner } from '../components/BarcodeScanner';
 import { actions, uid, useAppState } from '../store/store';
-import { BASE_FOODS, searchFoods } from '../lib/foods';
-import { lookupBarcode, searchOpenFoodFacts } from '../lib/openfoodfacts';
+import { BASE_FOODS, normalize } from '../lib/foods';
+import { lookupBarcode } from '../lib/openfoodfacts';
 import { MEALS, estimateGrade, fmt, foodGrade, scaleNutrients } from '../lib/nutrition';
 import { addDays } from '../lib/dates';
+import { describeItems, menuTotals, portionToEntry, recipeToFood } from '../lib/recipes';
+import { suggestionsFor } from '../lib/suggestions';
+import { OnlineResults, useLocalSearch, useOnlineSearch, useRecipeFoods } from './FoodSearch';
+import { MenuAddSheet, RecipeEditorSheet } from './RecipeSheets';
 
 // ───────────────────────── Buscar y añadir ─────────────────────────
 
-type ListTab = 'recientes' | 'mios' | 'todos';
+type ListTab = 'menus' | 'recientes' | 'mios' | 'base';
 
 export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open: boolean; onClose: () => void; date: string; meal: MealId }) {
   const state = useAppState();
   const [meal, setMeal] = useState<MealId>(initialMeal);
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<ListTab>('recientes');
-  const [online, setOnline] = useState<{ loading: boolean; results: Food[]; error?: string; done: boolean }>({ loading: false, results: [], done: false });
   const [picked, setPicked] = useState<Food | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const [adjustMenu, setAdjustMenu] = useState<Menu | null>(null);
+  const [newRecipe, setNewRecipe] = useState(false);
+  const recipeFoods = useRecipeFoods();
+  const localResults = useLocalSearch(query);
+  const online = useOnlineSearch(query);
 
   useEffect(() => {
     if (open) {
       setMeal(initialMeal);
       setQuery('');
-      setOnline({ loading: false, results: [], done: false });
-      setTab(state.recentFoods.length ? 'recientes' : 'todos');
+      setTab(state.menus.length ? 'menus' : state.recentFoods.length ? 'recientes' : 'base');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialMeal]);
 
-  // Cualquier cambio en la búsqueda invalida los resultados online anteriores
-  useEffect(() => {
-    abortRef.current?.abort();
-    setOnline({ loading: false, results: [], done: false });
-  }, [query]);
-
-  const pool = useMemo(() => {
-    const seen = new Set<string>();
-    return [...state.customFoods, ...state.recentFoods, ...BASE_FOODS].filter((f) => (seen.has(f.id) ? false : (seen.add(f.id), true)));
-  }, [state.customFoods, state.recentFoods]);
-
-  const localResults = useMemo(() => searchFoods(query, pool).slice(0, 40), [query, pool]);
-
-  const searchOnline = async () => {
-    if (query.trim().length < 2) return;
-    abortRef.current?.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setOnline({ loading: true, results: [], done: false });
-    try {
-      const results = await searchOpenFoodFacts(query.trim(), ctrl.signal);
-      setOnline({ loading: false, results, done: true });
-    } catch (err) {
-      if ((err as DOMException).name === 'AbortError') return;
-      setOnline({ loading: false, results: [], done: false, error: navigator.onLine ? 'No se pudo consultar Open Food Facts. Inténtalo de nuevo en unos segundos.' : 'Sin conexión. Busca en la base local o crea el alimento.' });
-    }
-  };
+  const q = normalize(query);
+  const menuResults = q ? state.menus.filter((m) => normalize(m.name).includes(q)) : [];
+  const suggestions = useMemo(() => (open ? suggestionsFor(state, meal, date) : []), [open, state, meal, date]);
 
   const yesterdayCount = state.days[addDays(date, -1)]?.entries.filter((e) => e.meal === meal).length ?? 0;
   const mealLabel = MEALS.find((m) => m.id === meal)!.label;
+  const myRecipeFoods = recipeFoods.filter((f) => !f.id.startsWith('recipe:base-'));
 
-  const list: Food[] = query.trim()
-    ? localResults
-    : tab === 'recientes'
-      ? state.recentFoods
-      : tab === 'mios'
-        ? state.customFoods
-        : BASE_FOODS;
+  /** Añade varios alimentos como un grupo y ofrece deshacer */
+  const addGroup = (portions: Portion[], groupName: string, menuId?: string) => {
+    const now = new Date().toISOString();
+    const groupId = uid();
+    const entries = portions.map((p) => portionToEntry(p, meal, 1, uid(), now, { groupId, groupName }));
+    const ids = actions.addEntries(date, entries);
+    if (menuId) actions.markMenuUsed(menuId);
+    onClose();
+    toast(`${groupName} añadido a ${mealLabel}`, '✅', undefined, { label: 'Deshacer', run: () => actions.removeEntries(date, ids) });
+  };
+
+  const list: Food[] = tab === 'recientes' ? state.recentFoods : tab === 'mios' ? [...myRecipeFoods, ...state.customFoods] : BASE_FOODS;
 
   return (
     <>
       <Sheet open={open} onClose={onClose} full title="Añadir alimento">
-        <div className="segmented" style={{ marginBottom: '0.82rem' }}>
-          {MEALS.map((m) => (
-            <button key={m.id} aria-pressed={meal === m.id} onClick={() => setMeal(m.id)}>
-              {m.label}
-            </button>
-          ))}
-        </div>
+        <Segmented label="Comida" value={meal} onChange={setMeal} options={MEALS.map((m) => ({ value: m.id, label: m.label }))} />
 
         <form
           className="search"
+          style={{ marginTop: '0.8rem' }}
+          role="search"
           onSubmit={(e) => {
             e.preventDefault();
             (document.activeElement as HTMLElement | null)?.blur();
-            if (!localResults.length) void searchOnline();
+            if (!localResults.length && !menuResults.length) void online.search();
           }}
         >
-          <IconSearch size={20} className="faint" />
+          <IconSearch size={18} />
           <input
             type="search"
-            placeholder="Buscar: huevo, yogur, Hacendado…"
+            placeholder="Alimento, plato, menú o marca…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             enterKeyHint="search"
             autoCorrect="off"
             autoCapitalize="none"
-            aria-label="Buscar alimento"
+            aria-label="Buscar alimento, plato o menú"
           />
         </form>
 
-        <div className="chips" style={{ marginTop: '0.71rem' }}>
+        <div className="chips" style={{ marginTop: '0.7rem' }}>
+          <button className="chip" onClick={() => setBarcodeOpen(true)}>📷 Escanear código</button>
           <button className="chip" onClick={() => setQuickOpen(true)}>⚡ Añadido rápido</button>
+          <button className="chip" onClick={() => setNewRecipe(true)}>🍲 Nuevo plato</button>
           <button className="chip" onClick={() => setCustomOpen(true)}>✏️ Crear alimento</button>
-          <button className="chip" onClick={() => setBarcodeOpen(true)}>🏷️ Código de barras</button>
           {yesterdayCount > 0 && (
             <button
               className="chip"
@@ -125,50 +111,73 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
           )}
         </div>
 
-        {!query.trim() && (
-          <div className="segmented" style={{ margin: '0.94rem 0 0.24rem' }}>
-            <button aria-pressed={tab === 'recientes'} onClick={() => setTab('recientes')}>Recientes</button>
-            <button aria-pressed={tab === 'mios'} onClick={() => setTab('mios')}>Mis alimentos</button>
-            <button aria-pressed={tab === 'todos'} onClick={() => setTab('todos')}>Base</button>
-          </div>
-        )}
-
-        <div className="group" style={{ marginTop: '0.47rem' }}>
-          {list.map((f) => (
-            <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />
-          ))}
-        </div>
-
-        {!query.trim() && !list.length && (
-          <p className="muted center" style={{ padding: '1.76rem 0.59rem' }}>
-            {tab === 'recientes' ? 'Aquí aparecerán los alimentos que vayas usando.' : 'Aún no has creado alimentos propios.'}
-          </p>
-        )}
-
-        {query.trim().length >= 2 && (
-          <div style={{ marginTop: '1.06rem' }}>
-            {!online.done && (
-              <button className="btn secondary block" onClick={searchOnline} disabled={online.loading}>
-                {online.loading ? 'Buscando…' : `🛒 Buscar “${query.trim()}” en productos de supermercado`}
+        {!query.trim() && suggestions.length > 0 && (
+          <section aria-label="Sugerencias" style={{ marginTop: '1rem' }}>
+            <h3 className="section-header" style={{ marginLeft: 0, marginTop: 0 }}>Sugerencias para {mealLabel.toLowerCase()}</h3>
+            {suggestions.map((s) => (
+              <button key={s.key} className="suggest" style={{ width: '100%', textAlign: 'left' }}
+                onClick={() => addGroup(s.portions, s.groupName, s.menuId)}
+                aria-label={`Añadir ${s.title}: ${s.subtitle}, ${s.kcal} kilocalorías`}>
+                <span style={{ fontSize: '1.4rem' }} aria-hidden="true">{s.emoji}</span>
+                <span className="grow">
+                  <span className="bold" style={{ display: 'block' }}>{s.title}</span>
+                  <span className="small muted ellipsis" style={{ display: 'block' }}>{s.subtitle}</span>
+                </span>
+                <span className="num small bold">{s.kcal} kcal</span>
+                <span className="add-btn" aria-hidden="true"><IconPlus size={16} /></span>
               </button>
-            )}
-            {online.error && <p className="muted small center">{online.error}</p>}
-            {online.done && (
+            ))}
+          </section>
+        )}
+
+        {query.trim() ? (
+          <>
+            {menuResults.length > 0 && (
               <>
-                <div className="field-label" style={{ margin: '0.35rem 0 0.24rem' }}>Open Food Facts</div>
-                {online.results.length ? (
-                  <div className="group">
-                    {online.results.map((f) => <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />)}
-                  </div>
-                ) : (
-                  <p className="muted small center">Sin resultados online. Puedes crear el alimento tú mismo.</p>
-                )}
+                <h3 className="section-header" style={{ marginLeft: 0 }}>Menús</h3>
+                <div className="group">
+                  {menuResults.map((m) => <MenuRow key={m.id} menu={m} onAdd={() => addGroup(m.items, m.name, m.id)} onAdjust={() => setAdjustMenu(m)} />)}
+                </div>
               </>
             )}
-            {!localResults.length && !online.done && !online.loading && (
-              <p className="muted small center" style={{ marginTop: '0.59rem' }}>No está en la base local.</p>
+            {localResults.length > 0 && (
+              <>
+                <h3 className="section-header" style={{ marginLeft: 0 }}>Alimentos y platos</h3>
+                <div className="group">
+                  {localResults.map((f) => <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />)}
+                </div>
+              </>
             )}
-          </div>
+            <OnlineResults query={query} online={online} hasLocal={localResults.length + menuResults.length > 0} onPick={setPicked} />
+          </>
+        ) : (
+          <>
+            <div style={{ margin: '1rem 0 0.5rem' }}>
+              <Segmented label="Lista" value={tab} onChange={setTab}
+                options={[{ value: 'menus', label: 'Menús' }, { value: 'recientes', label: 'Recientes' }, { value: 'mios', label: 'Míos' }, { value: 'base', label: 'Base' }]} />
+            </div>
+            {tab === 'menus' ? (
+              state.menus.length ? (
+                <div className="group">
+                  {[...state.menus].sort((a, b) => b.uses - a.uses).map((m) => (
+                    <MenuRow key={m.id} menu={m} onAdd={() => addGroup(m.items, m.name, m.id)} onAdjust={() => setAdjustMenu(m)} />
+                  ))}
+                </div>
+              ) : (
+                <p className="muted center small" style={{ padding: '1.5rem 0.5rem' }}>
+                  Aún no tienes menús. Registra una comida y, desde el Diario, pulsa <b>Guardar como menú</b>: la próxima vez la añadirás de un toque.
+                </p>
+              )
+            ) : list.length ? (
+              <div className="group">
+                {list.map((f) => <FoodRow key={f.id} food={f} onClick={() => setPicked(f)} />)}
+              </div>
+            ) : (
+              <p className="muted center small" style={{ padding: '1.5rem 0.5rem' }}>
+                {tab === 'recientes' ? 'Aquí aparecerán los alimentos que vayas usando.' : 'Aún no has creado platos ni alimentos propios.'}
+              </p>
+            )}
+          </>
         )}
       </Sheet>
 
@@ -178,9 +187,11 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
         onClose={() => setPicked(null)}
         onSave={(entry, food) => {
           actions.addEntry(date, entry);
-          actions.pushRecent(food);
+          if (food.source !== 'recipe') actions.pushRecent(food);
           setPicked(null);
-          toast(`Añadido a ${MEALS.find((m) => m.id === entry.meal)!.label}`, food.emoji ?? '✅');
+          toast(`Añadido a ${MEALS.find((m) => m.id === entry.meal)!.label}`, food.emoji ?? '✅', undefined, {
+            label: 'Deshacer', run: () => actions.removeEntry(date, entry.id)
+          });
         }}
       />
       <QuickAddSheet
@@ -210,7 +221,38 @@ export function AddFoodSheet({ open, onClose, date, meal: initialMeal }: { open:
           setPicked(f);
         }}
       />
+      <MenuAddSheet menu={adjustMenu} date={date} meal={meal} onClose={() => setAdjustMenu(null)} onAdded={() => { setAdjustMenu(null); onClose(); }} />
+      <RecipeEditorSheet
+        open={newRecipe}
+        onClose={() => setNewRecipe(false)}
+        onSaved={(r) => {
+          setNewRecipe(false);
+          setPicked(recipeToFood(r));
+        }}
+      />
     </>
+  );
+}
+
+/** Fila de menú: tocar = añadir de un toque; botón secundario = ajustar antes */
+export function MenuRow({ menu, onAdd, onAdjust }: { menu: Menu; onAdd: () => void; onAdjust?: () => void }) {
+  const kcal = Math.round(menuTotals(menu).kcal);
+  return (
+    <div className="cell" style={{ padding: 0 }}>
+      <button className="cell" style={{ flex: 1 }} onClick={onAdd} aria-label={`Añadir menú ${menu.name}: ${describeItems(menu.items)}. ${kcal} kilocalorías`}>
+        <span className="emoji-tile" aria-hidden="true">{menu.emoji}</span>
+        <span className="grow">
+          <span className="cell-title ellipsis bold">{menu.name}</span>
+          <span className="cell-sub ellipsis">{describeItems(menu.items)} · {kcal} kcal</span>
+        </span>
+        <span className="add-btn" aria-hidden="true"><IconPlus size={16} /></span>
+      </button>
+      {onAdjust && (
+        <button className="icon-btn" style={{ marginRight: '0.8rem' }} onClick={onAdjust} aria-label={`Ajustar ${menu.name} antes de añadir`}>
+          <IconSliders size={16} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -238,7 +280,7 @@ export function FoodRow({ food, onClick, right }: { food: Food; onClick: () => v
 // ───────────────────────── Cantidad ─────────────────────────
 
 export function FoodAmountSheet({
-  food, meal: initialMeal, entry, onClose, onSave, onDelete
+  food, meal: initialMeal, entry, onClose, onSave, onDelete, actionLabel, hideMeal
 }: {
   food: Food | null;
   meal: MealId;
@@ -246,6 +288,10 @@ export function FoodAmountSheet({
   onClose: () => void;
   onSave: (entry: FoodEntry, food: Food) => void;
   onDelete?: () => void;
+  /** Texto del botón (p. ej. “Añadir al plato” cuando se usa como selector) */
+  actionLabel?: string;
+  /** Oculta el selector de comida (editores de platos y menús) */
+  hideMeal?: boolean;
 }) {
   const [mode, setMode] = useState<'serving' | 'grams'>('grams');
   const [amount, setAmount] = useState<number | ''>(100);
@@ -303,7 +349,7 @@ export function FoodAmountSheet({
             </button>
           )}
           <button className="btn block grow" onClick={save} disabled={grams <= 0}>
-            {entry ? 'Guardar cambios' : `Añadir a ${MEALS.find((m) => m.id === meal)!.label}`}
+            {actionLabel ?? (entry ? 'Guardar cambios' : `Añadir a ${MEALS.find((m) => m.id === meal)!.label}`)}
           </button>
         </div>
       }
@@ -345,14 +391,12 @@ export function FoodAmountSheet({
         ))}
       </div>
 
-      <div className="field" style={{ marginTop: '1.06rem' }}>
-        <label>Comida</label>
-        <div className="segmented">
-          {MEALS.map((m) => (
-            <button key={m.id} aria-pressed={meal === m.id} onClick={() => setMeal(m.id)}>{m.label}</button>
-          ))}
+      {!hideMeal && (
+        <div className="field" style={{ marginTop: '1.06rem' }}>
+          <label>Comida</label>
+          <Segmented label="Comida" value={meal} onChange={setMeal} options={MEALS.map((m) => ({ value: m.id, label: m.label }))} />
         </div>
-      </div>
+      )}
 
       <div className="card small" style={{ marginTop: '1.06rem' }}>
         <div className="row between"><span className="muted">Azúcares</span><b className="num">{fmt(n.sugar ?? 0, 1)} g</b></div>
@@ -592,24 +636,26 @@ export function CustomFoodSheet({ open, onClose, onSaved, initialName = '', edit
 }
 
 // ───────────────────────── Código de barras ─────────────────────────
-// iOS Safari no expone la API BarcodeDetector, así que se introduce el código
-// a mano (está bajo las barras, 8 o 13 dígitos).
+// Escaneo con la cámara (lector propio, sin depender de Safari) y, como
+// alternativa, escribir los dígitos que hay bajo las barras.
 
-function BarcodeSheet({ open, onClose, onFound }: { open: boolean; onClose: () => void; onFound: (f: Food) => void }) {
+export function BarcodeSheet({ open, onClose, onFound }: { open: boolean; onClose: () => void; onFound: (f: Food) => void }) {
   const [code, setCode] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'notfound' | 'error'>('idle');
+  const [scanKey, setScanKey] = useState(0);
 
   useEffect(() => {
     if (open) {
       setCode('');
       setStatus('idle');
+      setScanKey((k) => k + 1);
     }
   }, [open]);
 
-  const search = async () => {
+  const search = async (value = code) => {
     setStatus('loading');
     try {
-      const f = await lookupBarcode(code);
+      const f = await lookupBarcode(value);
       if (f) onFound(f);
       else setStatus('notfound');
     } catch {
@@ -618,12 +664,37 @@ function BarcodeSheet({ open, onClose, onFound }: { open: boolean; onClose: () =
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Código de barras"
-      footer={<button className="btn block" disabled={code.replace(/\D/g, '').length < 8 || status === 'loading'} onClick={search}>{status === 'loading' ? 'Buscando…' : 'Buscar producto'}</button>}>
-      <p className="muted small" style={{ marginTop: '0.0rem' }}>Escribe los números que aparecen bajo el código de barras del envase.</p>
-      <input className="input num" inputMode="numeric" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="8410000000000" autoFocus />
-      {status === 'notfound' && <p className="small" style={{ color: 'var(--warn)' }}>No encontrado en Open Food Facts. Puedes crearlo con “Crear alimento”.</p>}
-      {status === 'error' && <p className="small" style={{ color: 'var(--danger)' }}>Error de conexión. Revisa tu conexión a internet.</p>}
+    <Sheet open={open} onClose={onClose} full title="Escanear producto"
+      footer={
+        <button className="btn block" disabled={code.replace(/\D/g, '').length < 8 || status === 'loading'} onClick={() => search()}>
+          {status === 'loading' ? 'Buscando…' : 'Buscar producto'}
+        </button>
+      }>
+      {open && status !== 'notfound' && (
+        <BarcodeScanner
+          key={scanKey}
+          onCode={(c) => {
+            setCode(c);
+            void search(c);
+          }}
+        />
+      )}
+      {status === 'notfound' && (
+        <div className="banner" role="alert">
+          <span aria-hidden="true">🔎</span>
+          <div className="small">
+            <b>Producto {code} no encontrado</b>
+            <div className="muted">No está en Open Food Facts. Puedes crearlo con “Crear alimento” copiando la etiqueta.</div>
+            <button className="link small" onClick={() => { setStatus('idle'); setScanKey((k) => k + 1); }}>Escanear otro</button>
+          </div>
+        </div>
+      )}
+      {status === 'error' && <p className="small" role="alert" style={{ color: 'var(--danger)' }}>Error de conexión. Revisa tu conexión a internet.</p>}
+      <div className="field mt">
+        <label htmlFor="barcode-input">O escribe el código (bajo las barras)</label>
+        <input id="barcode-input" className="input num" inputMode="numeric" value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} placeholder="8410000000000" />
+      </div>
     </Sheet>
   );
 }

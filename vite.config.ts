@@ -10,9 +10,12 @@ const base = process.env.BASE_PATH ?? '/FoodControl/';
 // GitHub Pages no permite cabeceras HTTP propias, así que va como <meta>.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // 'wasm-unsafe-eval' permite compilar WebAssembly (lector de códigos de
+  // barras) sin habilitar eval() de JavaScript
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self'",
   "img-src 'self' data: blob:",
+  "media-src 'self' blob: mediastream:",
   "connect-src 'self' https://world.openfoodfacts.org",
   "manifest-src 'self'",
   "worker-src 'self'",
@@ -57,8 +60,16 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         navigateFallback: 'index.html',
-        // Las búsquedas online de Open Food Facts nunca se cachean
-        runtimeCaching: []
+        // El lector de códigos (~1 MB) no se precarga: se guarda la primera vez
+        // que se usa y desde entonces funciona sin conexión.
+        // Las búsquedas online de Open Food Facts nunca se cachean.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'foodcontrol-wasm', expiration: { maxEntries: 3 } }
+          }
+        ]
       }
     })
   ]

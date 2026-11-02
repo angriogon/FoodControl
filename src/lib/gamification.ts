@@ -130,7 +130,7 @@ export function computeStats(state: AppState, targets: Targets): Stats {
   const today = todayKey();
   const s: Stats = {
     entries: 0, daysLogged: 0, weeksActive: 0, bestStreak: bestStreak(state), distinctFoods: 0,
-    customFoods: state.customFoods.length, waterDays: 0, healthyDays: 0, balancedDays: 0, proteinDays: 0,
+    customFoods: state.customFoods.length + state.recipes.length, waterDays: 0, healthyDays: 0, balancedDays: 0, proteinDays: 0,
     fiberDays: 0, allMealsDays: 0, activities: 0, activityMinutes: 0, noteDays: 0, weighIns: state.weights.length,
     kgProgress: 0, goalReached: 0
   };
@@ -265,8 +265,8 @@ export const ACHIEVEMENTS: Achievement[] = [
     ['Gourmet', 'Prueba 300 alimentos distintos', '👨‍🍳', 300, 1200, 'hat:chef']
   ]),
   ...series('recetas', (s) => s.customFoods, [
-    ['Cocinillas', 'Crea 5 alimentos o recetas propias', '🍳', 5, 100],
-    ['Recetario propio', 'Crea 25 alimentos o recetas propias', '📒', 25, 450, 'body:delantal']
+    ['Cocinillas', 'Crea 5 platos o alimentos propios', '🍳', 5, 100],
+    ['Recetario propio', 'Crea 25 platos o alimentos propios', '📒', 25, 450, 'body:delantal']
   ]),
   ...series('agua', (s) => s.waterDays, [
     ['Bien hidratado', 'Cumple el objetivo de agua 14 días', '💧', 14, 100, 'hand:botella'],

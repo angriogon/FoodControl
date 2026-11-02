@@ -6,11 +6,13 @@ import { ACHIEVEMENTS, computeStats } from './lib/gamification';
 import { Home } from './screens/Home';
 import { Diary } from './screens/Diary';
 import { Achievements } from './screens/Achievements';
+import { Recipes } from './screens/Recipes';
+import { Segmented } from './components/common';
 import { Pet } from './screens/Pet';
 import { Profile } from './screens/Profile';
 import { Onboarding } from './screens/Onboarding';
 
-const TABS: Tab[] = ['inicio', 'diario', 'logros', 'mascota', 'perfil'];
+const TABS: Tab[] = ['inicio', 'diario', 'recetas', 'mascota', 'logros', 'perfil'];
 const SEEN_KEY = 'foodcontrol:seen-achievements';
 
 function tabFromHash(): Tab {
@@ -102,11 +104,19 @@ export default function App() {
       <main className="app">
       {tab === 'inicio' && <Home go={go} openData={() => { go('perfil'); setDataOpen(true); }} />}
       {tab === 'diario' && <Diary />}
-      {tab === 'logros' && <Achievements />}
-      {tab === 'mascota' && <Pet />}
+      {tab === 'recetas' && <Recipes />}
+      {(tab === 'mascota' || tab === 'logros') && (
+        <>
+          <div className="pet-switch">
+            <Segmented label="Mascota o logros" value={tab} onChange={go}
+              options={[{ value: 'mascota', label: 'Mascota' }, { value: 'logros', label: `Logros${unlockedCount - seen > 0 ? ` (${unlockedCount - seen})` : ''}` }]} />
+          </div>
+          {tab === 'mascota' ? <Pet /> : <Achievements />}
+        </>
+      )}
       {tab === 'perfil' && <Profile dataOpen={dataOpen} setDataOpen={setDataOpen} />}
       </main>
-      <TabBar tab={tab} onChange={go} badges={{ logros: Math.max(0, unlockedCount - seen) }} />
+      <TabBar tab={tab} onChange={go} badges={{ mascota: Math.max(0, unlockedCount - seen) }} />
       <Toasts />
     </>
   );

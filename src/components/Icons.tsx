@@ -134,6 +134,20 @@ export const IconCopy = (p: P) => (
     <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
   </Base>
 );
+export const IconSliders = (p: P) => (
+  <Base {...p}>
+    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+    <circle cx="16" cy="7" r="2" />
+    <circle cx="10" cy="17" r="2" />
+  </Base>
+);
+export const IconBook = ({ filled, ...p }: P) => (
+  <Base {...p}>
+    <path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z" fill={filled ? 'currentColor' : 'none'} />
+    <path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3" />
+    <path d="M9 7.5h6" stroke={filled ? 'var(--bg)' : 'currentColor'} />
+  </Base>
+);
 export const IconShare = (p: P) => (
   <Base {...p}>
     <path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12" />

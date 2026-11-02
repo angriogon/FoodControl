@@ -32,7 +32,7 @@ export interface Food {
   /** Ración típica, p.ej. { label: '1 huevo', grams: 55 } */
   serving?: { label: string; grams: number };
   grade?: QualityGrade;
-  source: 'base' | 'custom' | 'off';
+  source: 'base' | 'custom' | 'off' | 'recipe';
   emoji?: string;
 }
 
@@ -48,6 +48,9 @@ export interface FoodEntry {
   grade?: QualityGrade;
   emoji?: string;
   createdAt: string;
+  /** Si se añadió como parte de un menú: id del grupo y nombre del menú */
+  groupId?: string;
+  groupName?: string;
 }
 
 export interface ActivityEntry {
@@ -123,6 +126,40 @@ export interface PetState {
   purchased: string[];
 }
 
+// ───────────── Recetario ─────────────
+
+/** Ingrediente de un plato o elemento de un menú: alimento + cantidad en g/ml */
+export interface Portion {
+  food: Food;
+  amount: number;
+}
+
+/** Plato o receta: varios ingredientes que se cocinan juntos y se reparten en raciones */
+export interface Recipe {
+  id: string;
+  name: string;
+  emoji: string;
+  servings: number;
+  ingredients: Portion[];
+  /** Peso total cocinado (g). Si se indica, se puede registrar por gramos servidos */
+  cookedWeightG?: number;
+  tags: string[];
+  createdAt: string;
+}
+
+/** Menú: comida completa que se añade de un toque (alimentos y/o platos) */
+export interface Menu {
+  id: string;
+  name: string;
+  emoji: string;
+  /** Comida a la que se añade por defecto */
+  meal: MealId;
+  items: Portion[];
+  createdAt: string;
+  /** Veces que se ha usado (para ordenar por uso) */
+  uses: number;
+}
+
 export interface AppState {
   version: 1;
   profile: Profile;
@@ -131,6 +168,8 @@ export interface AppState {
   customFoods: Food[];
   /** Alimentos usados recientemente (más reciente primero, máx. 40) */
   recentFoods: Food[];
+  recipes: Recipe[];
+  menus: Menu[];
   pet: PetState;
   /** id del logro → fecha ISO de desbloqueo */
   achievements: Record<string, string>;
